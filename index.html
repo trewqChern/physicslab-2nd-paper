@@ -112,6 +112,123 @@
       height: 22px;
       margin: 0 auto;
     }
+
+    /* === BLACK & NEON NIGHT MODE === */
+    html.dark,
+    html.dark body,
+    html.dark #lesson-overlay,
+    html.dark #guide-overlay {
+      background-color: #000000 !important;
+      color: #e6f7ff !important;
+    }
+    html.dark header,
+    html.dark #mobile-nav,
+    html.dark #lesson-footer {
+      background-color: rgba(0, 0, 0, 0.92) !important;
+      border-color: rgba(0, 240, 255, 0.24) !important;
+      box-shadow: 0 0 22px rgba(0, 240, 255, 0.08);
+    }
+    html.dark .dark\:bg-slate-950,
+    html.dark .dark\:bg-slate-950\/30,
+    html.dark .dark\:bg-slate-950\/50 {
+      background-color: #000000 !important;
+    }
+    html.dark .dark\:bg-slate-900,
+    html.dark .dark\:bg-slate-900\/95,
+    html.dark .dark\:bg-slate-900\/70 {
+      background-color: #060911 !important;
+    }
+    html.dark .dark\:bg-slate-800,
+    html.dark .dark\:bg-slate-800\/80,
+    html.dark .dark\:bg-slate-800\/70,
+    html.dark .dark\:bg-slate-800\/60,
+    html.dark .dark\:bg-slate-800\/50 {
+      background-color: #0c1220 !important;
+    }
+    html.dark .dark\:border-slate-800,
+    html.dark .dark\:border-slate-800\/80,
+    html.dark .dark\:border-slate-700,
+    html.dark .dark\:border-slate-700\/70 {
+      border-color: rgba(0, 240, 255, 0.22) !important;
+    }
+    html.dark .rounded-2xl.dark\:bg-slate-900 {
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.06);
+    }
+    html.dark .rounded-2xl.dark\:bg-slate-900:hover {
+      border-color: rgba(0, 240, 255, 0.45) !important;
+      box-shadow: 0 0 22px rgba(0, 240, 255, 0.14);
+    }
+    html.dark .formula-hero {
+      background: radial-gradient(circle at top, rgba(0, 240, 255, 0.14), #04070e 75%) !important;
+      border-color: rgba(0, 240, 255, 0.55) !important;
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.18), inset 0 0 18px rgba(176, 38, 255, 0.12) !important;
+      color: #f0fdff !important;
+    }
+    html.dark .formula-hero .katex {
+      color: #7df9ff !important;
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+    }
+    html.dark .bg-\[\#2493DF\] {
+      background: linear-gradient(135deg, #00d2ff 0%, #7c3aed 100%) !important;
+      color: #000000 !important;
+      font-weight: 800;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+    }
+    html.dark .bg-indigo-600 {
+      background: linear-gradient(135deg, #b026ff 0%, #00d2ff 100%) !important;
+      color: #000000 !important;
+      box-shadow: 0 0 16px rgba(176, 38, 255, 0.4);
+    }
+    html.dark .text-\[\#2493DF\],
+    html.dark .dark\:text-sky-300,
+    html.dark .dark\:text-sky-400 {
+      color: #00f0ff !important;
+    }
+    html.dark .dark\:text-emerald-400,
+    html.dark .dark\:text-emerald-300 {
+      color: #00ff9d !important;
+    }
+    html.dark .dark\:text-rose-400,
+    html.dark .dark\:text-rose-300,
+    html.dark .dark\:text-pink-300 {
+      color: #ff2a85 !important;
+    }
+    html.dark .dark\:text-amber-400,
+    html.dark .dark\:text-amber-300 {
+      color: #ffb800 !important;
+    }
+    html.dark .dark\:text-indigo-300,
+    html.dark .dark\:text-indigo-400,
+    html.dark .dark\:text-violet-300 {
+      color: #d580ff !important;
+    }
+    html.dark .node-active {
+      box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.75);
+      animation: neonPulseRing 2s infinite;
+    }
+    @keyframes neonPulseRing {
+      0% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7), 0 0 16px rgba(0, 240, 255, 0.5); }
+      70% { box-shadow: 0 0 0 14px rgba(0, 240, 255, 0), 0 0 22px rgba(176, 38, 255, 0.35); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0), 0 0 16px rgba(0, 240, 255, 0.5); }
+    }
+    html.dark .bg-gradient-to-r.from-indigo-600 {
+      background: linear-gradient(135deg, #0b0618 0%, #15072b 50%, #041824 100%) !important;
+      border: 1px solid rgba(176, 38, 255, 0.55) !important;
+      box-shadow: 0 0 22px rgba(176, 38, 255, 0.22), inset 0 0 20px rgba(0, 240, 255, 0.08) !important;
+    }
+    html.dark .bg-gradient-to-r.from-\[\#2493DF\],
+    html.dark .bg-gradient-to-br.from-\[\#2493DF\] {
+      background: linear-gradient(135deg, #031522 0%, #110726 60%, #051c29 100%) !important;
+      border: 1px solid rgba(0, 240, 255, 0.45) !important;
+      box-shadow: 0 0 26px rgba(0, 240, 255, 0.18) !important;
+    }
+    html.dark svg.bg-white {
+      border-color: rgba(0, 240, 255, 0.5) !important;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.16);
+    }
+    html.dark .math-scroll::-webkit-scrollbar-thumb {
+      background: rgba(0, 240, 255, 0.45);
+    }
   </style>
 </head>
 <body class="bg-[#F4F6FA] dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200 pb-20 md:pb-8">
