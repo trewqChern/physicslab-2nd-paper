@@ -942,6 +942,7 @@
       const dInfo = DIFF_LABELS[hq.difficulty] || DIFF_LABELS.medium;
       return {
         kind: 'handcrafted',
+        quizType: hq.type || 'concept',
         formulaId: formula.id,
         badge: tInfo.text,
         badgeCls: tInfo.cls,
@@ -1008,7 +1009,7 @@
           <p class="font-semibold text-slate-800 dark:text-white">প্রকৃত শেখা নিশ্চিত করতে নিচের নিয়মগুলো প্রয়োগ করা হয়েছে:</p>
           <ul class="list-disc pl-5 space-y-1">
             <li><strong>সক্রিয় পাঠ গেট:</strong> প্রতিটি শেখার স্লাইডে কমপক্ষে ৫ সেকেন্ড পড়া + উদাহরণ যাচাই + "বুঝেছি" চেকবক্স পূরণ বাধ্যতামূলক।</li>
-            <li><strong>ভুল সংশোধন লুপ:</strong> কোনো কুইজ ভুল হলে সেটি লেসনের শেষে নতুন অপশন ক্রমে আবার আসবে—সঠিক না করা পর্যন্ত শেষ হবে না।</li>
+            <li><strong>গাণিতিক ভুল সংশোধন ও লেসন রিডাইরেক্ট:</strong> গাণিতিক প্রশ্ন ভুল হলে ঠিক পরের ধাপেই ভিন্ন মানের একই অঙ্ক আসবে। সেটিও ভুল হলে সংশ্লিষ্ট মূল লেসনে ফেরত পাঠানো হবে এবং লেসন পড়ার পর আবার নতুন মানের অঙ্ক আসবে (কনসেপচুয়াল প্রশ্নে এটি প্রযোজ্য নয়)।</li>
             <li><strong>পাসিং মার্ক:</strong> সাধারণ লেসনে ≥৭৫% এবং বস কুইজে ≥৮০% প্রথম-চেষ্টার সঠিকতা ছাড়া লেসন পাস ও পরেরটি আনলক হবে না।</li>
             <li><strong>বস কুইজ টাইমার:</strong> ঢাবি পরীক্ষার গতিতে প্রতিটি বস প্রশ্নে ৪৫ সেকেন্ড সময়।</li>
             <li><strong>হার্ট অর্জন:</strong> হার্ট শেষ হলে ফ্রি রিফিল নেই—রিভিশন ড্রিল (SRS) এ প্রতি ২টি সঠিক উত্তরে +১ ❤️ অর্জন করতে হবে।</li>
@@ -1939,15 +1940,21 @@
               <div class="flex-1 min-w-0">
                 <div class="font-extrabold text-base ${ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}">
                   ${ok
-                    ? (step.isRetry ? '✅ দারুণ! ভুলটি সংশোধন হয়েছে (+5 XP)' : '✅ চমৎকার! সঠিক উত্তর (+10 XP)')
-                    : (activeLesson.timedOut ? '⏱️ সময় শেষ! প্রশ্নটি শেষে আবার আসবে—সমাধান দেখুন:' : (state.strictMode ? '❌ ভুল হয়েছে! প্রশ্নটি শেষে আবার আসবে—সমাধান দেখুন:' : '❌ ভুল হয়েছে! সমাধান দেখে নিন:'))}
+                    ? (step.isImmediateRetry || step.fromRemediation ? '✅ দারুণ! ভিন্ন মানের প্রশ্নটি সঠিক হয়েছে (+5 XP)' : '✅ চমৎকার! সঠিক উত্তর (+10 XP)')
+                    : (activeLesson.needsRedirectToLesson
+                        ? '🚨 পরপর ২ বার ভুল হয়েছে! আগে এই সূত্রের মূল লেসনটি পুনরায় পড়ুন:'
+                        : (state.strictMode && isNumericalQuiz(q)
+                            ? (activeLesson.timedOut
+                                ? '⏱️ সময় শেষ! ঠিক পরের ধাপেই ভিন্ন মানে একই অঙ্ক আসবে—সমাধান দেখুন:'
+                                : '❌ ভুল হয়েছে! ঠিক পরের ধাপেই ভিন্ন মানে একই অঙ্ক আসবে—সমাধান দেখুন:')
+                            : (activeLesson.timedOut ? '⏱️ সময় শেষ! সমাধান দেখে নিন:' : '❌ ভুল হয়েছে! সমাধান দেখে নিন:')))}
                 </div>
                 <div class="text-xs sm:text-sm text-slate-700 dark:text-slate-200 mt-1 math-scroll">
                   ${q.explanation || q.formula.context}
                 </div>
               </div>
               <button id="les-continue-btn" ${coolLocked ? 'disabled' : ''} class="w-full sm:w-auto px-7 py-3 rounded-xl font-extrabold text-sm shrink-0 shadow-sm transition ${coolLocked ? 'bg-rose-300 dark:bg-rose-900/50 text-white/80 cursor-not-allowed' : (ok ? 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95' : 'bg-rose-600 hover:bg-rose-700 text-white active:scale-95')}">
-                ${coolLocked ? `সমাধান পড়ুন (${toBnNum(activeLesson.explainCooldown)} সে.)` : 'পরবর্তী →'}
+                ${coolLocked ? `সমাধান পড়ুন (${toBnNum(activeLesson.explainCooldown)} সে.)` : (activeLesson.needsRedirectToLesson ? '📖 সংশ্লিষ্ট লেসনে ফিরে যান →' : 'পরবর্তী →')}
               </button>
             </div>
           `;
@@ -1968,7 +1975,7 @@
                   cb.textContent = `সমাধান পড়ুন (${toBnNum(activeLesson.explainCooldown)} সে.)`;
                 } else {
                   cb.disabled = false;
-                  cb.textContent = 'পরবর্তী →';
+                  cb.textContent = activeLesson.needsRedirectToLesson ? '📖 সংশ্লিষ্ট লেসনে ফিরে যান →' : 'পরবর্তী →';
                   cb.className = 'w-full sm:w-auto px-7 py-3 rounded-xl font-extrabold text-sm shrink-0 shadow-sm transition bg-rose-600 hover:bg-rose-700 text-white active:scale-95';
                 }
               }
@@ -1979,13 +1986,584 @@
       }
     }
 
+
+    // =========================================================================
+    // 9B. ADAPTIVE VALUE-VARIANT GENERATOR & REMEDIATION REDIRECT (NUMERICAL ONLY)
+    // =========================================================================
+    function pickRand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    function isNumericalQuiz(quiz) {
+      if (!quiz) return false;
+      return quiz.quizType === 'numerical' || quiz.kind === 'parametric_retry';
+    }
+
+    function makeParamQuiz(formula, qText, correctText, distractors, explanation) {
+      const uniqD = [];
+      const seen = new Set([String(correctText)]);
+      for (const d of distractors) {
+        const s = String(d);
+        if (!seen.has(s)) { seen.add(s); uniqD.push(s); }
+      }
+      while (uniqD.length < 3) uniqD.push(`\\(${(Math.floor(Math.random() * 40) + 5)}\\)`);
+      const opts = shuffle([
+        { html: `<div class="math-scroll py-0.5">${correctText}</div>`, correct: true },
+        ...uniqD.slice(0, 3).map(d => ({ html: `<div class="math-scroll py-0.5">${d}</div>`, correct: false }))
+      ]);
+      return {
+        kind: 'parametric_retry',
+        quizType: 'numerical',
+        formulaId: formula.id,
+        badge: 'ভিন্ন মানে পুনরায় যাচাই',
+        badgeCls: 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300',
+        diffText: 'নতুন মান',
+        diffCls: 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300',
+        promptHtml: `<div class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">${formula.topic} · নতুন মান</div>
+          <div class="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-snug math-scroll">${qText}</div>`,
+        options: opts,
+        explanation,
+        formula
+      };
+    }
+
+    const PARAMETRIC_GENERATORS = {
+      1: (f) => {
+        const C = pickRand([15, 20, 25, 30, 35, 45, 50, 60, 75, 80]);
+        const F = (9 * C) / 5 + 32;
+        return makeParamQuiz(f,
+          `কোনো বস্তুর তাপমাত্রা \\(${C}^\\circ\\text{C}\\) হলে ফারেনহাইট স্কেলে এর মান কত?`,
+          `\\(${F}^\\circ\\text{F}\\)`,
+          [`\\(${F - 32}^\\circ\\text{F}\\)`, `\\(${Math.round(C * 5 / 9 + 32)}^\\circ\\text{F}\\)`, `\\(${F + 18}^\\circ\\text{F}\\)`],
+          `\\(\\frac{C}{5} = \\frac{F-32}{9} \\Rightarrow F = \\frac{9}{5}(${C}) + 32 = ${F}^\\circ\\text{F}\\)।`
+        );
+      },
+      2: (f) => {
+        const dC = pickRand([10, 15, 20, 25, 30, 40, 50]);
+        const dF = (9 * dC) / 5;
+        return makeParamQuiz(f,
+          `সেলসিয়াস স্কেলে তাপমাত্রা \\(${dC}^\\circ\\text{C}\\) বৃদ্ধি পেলে ফারেনহাইট স্কেলে কত বৃদ্ধি পাবে?`,
+          `\\(${dF}^\\circ\\text{F}\\)`,
+          [`\\(${dF + 32}^\\circ\\text{F}\\)`, `\\(${dC}^\\circ\\text{F}\\)`, `\\(${Math.round(dC * 5 / 9)}^\\circ\\text{F}\\)`],
+          `ব্যবধানের ক্ষেত্রে \\(\\Delta F = \\frac{9}{5}\\Delta C = \\frac{9}{5}\\times ${dC} = ${dF}^\\circ\\text{F}\\) (৩২ যোগ হবে না!)।`
+        );
+      },
+      5: (f) => {
+        const m = pickRand([2, 3, 4, 5]);
+        const s = pickRand([400, 500, 800, 1000]);
+        const dT = pickRand([5, 10, 15, 20]);
+        const Q = m * s * dT;
+        return makeParamQuiz(f,
+          `\\(${m}\\text{ kg}\\) ভরের ও \\(${s}\\text{ J kg}^{-1}\\text{K}^{-1}\\) আপেক্ষিক তাপের বস্তুর তাপমাত্রা \\(${dT}\\text{ K}\\) বাড়াতে কত তাপ লাগবে?`,
+          `\\(${Q}\\text{ J}\\)`,
+          [`\\(${Q / 2}\\text{ J}\\)`, `\\(${Q * 2}\\text{ J}\\)`, `\\(${m * s}\\text{ J}\\)`],
+          `\\(Q = ms\\Delta\\theta = ${m} \\times ${s} \\times ${dT} = ${Q}\\text{ J}\\)।`
+        );
+      },
+      6: (f) => {
+        const m = pickRand([2, 3, 4, 5, 6]);
+        const s = pickRand([400, 450, 500, 900]);
+        const C = m * s;
+        return makeParamQuiz(f,
+          `\\(${m}\\text{ kg}\\) ভরের কোনো বস্তুর আপেক্ষিক তাপ \\(${s}\\text{ J kg}^{-1}\\text{K}^{-1}\\) হলে তাপ ধারণ ক্ষমতা কত?`,
+          `\\(${C}\\text{ J K}^{-1}\\)`,
+          [`\\(${Math.round(s / m)}\\text{ J K}^{-1}\\)`, `\\(${C * 2}\\text{ J K}^{-1}\\)`, `\\(${C / 2}\\text{ J K}^{-1}\\)`],
+          `\\(C = ms = ${m} \\times ${s} = ${C}\\text{ J K}^{-1}\\)।`
+        );
+      },
+      12: (f) => {
+        const P1 = pickRand([2, 3, 4, 5, 6]);
+        const V1 = pickRand([4, 6, 8, 10]);
+        const V2 = V1 / 2;
+        const P2 = (P1 * V1) / V2;
+        return makeParamQuiz(f,
+          `সমোষ্ণ প্রক্রিয়ায় \\(${P1}\\text{ atm}\\) চাপে গ্যাসের আয়তন \\(${V1}\\text{ L}\\) থেকে কমিয়ে \\(${V2}\\text{ L}\\) করলে নতুন চাপ কত?`,
+          `\\(${P2}\\text{ atm}\\)`,
+          [`\\(${P1 / 2}\\text{ atm}\\)`, `\\(${P1}\\text{ atm}\\)`, `\\(${P2 * 2}\\text{ atm}\\)`],
+          `সমোষ্ণ প্রক্রিয়ায় \\(P_1 V_1 = P_2 V_2 \\Rightarrow P_2 = \\frac{${P1}\\times ${V1}}{${V2}} = ${P2}\\text{ atm}\\)।`
+        );
+      },
+      18: (f) => {
+        const Q = pickRand([600, 900, 1200, 1500, 1800, 2400]);
+        const T = pickRand([300, 400, 600]);
+        const dS = +(Q / T).toFixed(2);
+        return makeParamQuiz(f,
+          `\\(${T}\\text{ K}\\) স্থির তাপমাত্রায় কোনো সিস্টেম \\(${Q}\\text{ J}\\) তাপ শোষণ করলে এন্ট্রপির পরিবর্তন কত?`,
+          `\\(${dS}\\text{ J K}^{-1}\\)`,
+          [`\\(${+(dS * 2).toFixed(2)}\\text{ J K}^{-1}\\)`, `\\(${+(dS / 2).toFixed(2)}\\text{ J K}^{-1}\\)`, `\\(${Q * T}\\text{ J K}^{-1}\\)`],
+          `\\(\\Delta S = \\frac{Q}{T} = \\frac{${Q}}{${T}} = ${dS}\\text{ J K}^{-1}\\)।`
+        );
+      },
+      19: (f) => {
+        const pairs = [[500, 300], [600, 300], [800, 400], [500, 200], [400, 300], [1000, 400], [600, 450]];
+        const [T1, T2] = pickRand(pairs);
+        const eta = Math.round((1 - T2 / T1) * 100);
+        return makeParamQuiz(f,
+          `একটি কার্নো ইঞ্জিন \\(${T1}\\text{ K}\\) ও \\(${T2}\\text{ K}\\) তাপমাত্রার মধ্যে কাজ করলে এর দক্ষতা কত?`,
+          `\\(${eta}\\%\\)`,
+          [`\\(${100 - eta}\\%\\)`, `\\(${Math.max(10, eta - 15)}\\%\\)`, `\\(${Math.min(95, eta + 15)}\\%\\)`],
+          `\\(\\eta = \\left(1 - \\frac{T_2}{T_1}\\right)\\times 100\\% = \\left(1 - \\frac{${T2}}{${T1}}\\right)\\times 100\\% = ${eta}\\%\\)।`
+        );
+      },
+      20: (f) => {
+        const pairs = [[300, 250], [320, 240], [350, 280], [300, 240], [360, 300]];
+        const [TH, TL] = pickRand(pairs);
+        const K = +(TL / (TH - TL)).toFixed(2);
+        return makeParamQuiz(f,
+          `একটি রেফ্রিজারেটর \\(${TL}\\text{ K}\\) ও \\(${TH}\\text{ K}\\) তাপমাত্রার মধ্যে কাজ করলে এর কার্যকারিতা গুণাঙ্ক \\(K\\) কত?`,
+          `\\(${K}\\)`,
+          [`\\(${+(TH / (TH - TL)).toFixed(2)}\\)`, `\\(${+((TH - TL) / TL).toFixed(2)}\\)`, `\\(${+(K + 1.5).toFixed(2)}\\)`],
+          `\\(K = \\frac{T_L}{T_H - T_L} = \\frac{${TL}}{${TH} - ${TL}} = ${K}\\)।`
+        );
+      },
+      107: (f) => PARAMETRIC_GENERATORS[20](f),
+      22: (f) => {
+        const F0 = pickRand([16, 20, 36, 40, 64, 80]);
+        const k = pickRand([2, 4]);
+        const Fnew = F0 / (k * k);
+        return makeParamQuiz(f,
+          `দুটি আধানের মধ্যবর্তী কুলম্ব বল \\(${F0}\\text{ N}\\)। দূরত্ব \\(${k}\\) গুণ করলে নতুন বল কত হবে?`,
+          `\\(${Fnew}\\text{ N}\\)`,
+          [`\\(${F0 / k}\\text{ N}\\)`, `\\(${F0 * k}\\text{ N}\\)`, `\\(${F0 * k * k}\\text{ N}\\)`],
+          `\\(F \\propto \\frac{1}{r^2}\\), তাই দূরত্ব \\(${k}\\) গুণ হলে বল \\(\\frac{${F0}}{${k}^2} = ${Fnew}\\text{ N}\\) হবে।`
+        );
+      },
+      23: (f) => {
+        const F = pickRand([12, 18, 24, 30, 40, 50]);
+        const q = pickRand([2, 3, 4, 5]);
+        const E = +(F / q).toFixed(2);
+        return makeParamQuiz(f,
+          `কোনো বিন্দুতে \\(${q}\\text{ C}\\) চার্জ রাখলে \\(${F}\\text{ N}\\) বল অনুভূত হয়। ঐ বিন্দুর তড়িৎ প্রাবল্য কত?`,
+          `\\(${E}\\text{ N C}^{-1}\\)`,
+          [`\\(${F * q}\\text{ N C}^{-1}\\)`, `\\(${+(E * 2).toFixed(2)}\\text{ N C}^{-1}\\)`, `\\(${+(q / F).toFixed(2)}\\text{ N C}^{-1}\\)`],
+          `\\(E = \\frac{F}{q_0} = \\frac{${F}}{${q}} = ${E}\\text{ N C}^{-1}\\)।`
+        );
+      },
+      32: (f) => {
+        const q = pickRand([2, 3, 4, 5, 6]);
+        const dV = pickRand([10, 15, 20, 25, 30]);
+        const W = q * dV;
+        return makeParamQuiz(f,
+          `\\(${dV}\\text{ V}\\) বিভব পার্থক্যের মধ্যে \\(${q}\\text{ C}\\) আধান সরাতে কত কাজ করতে হবে?`,
+          `\\(${W}\\text{ J}\\)`,
+          [`\\(${+(dV / q).toFixed(2)}\\text{ J}\\)`, `\\(${W / 2}\\text{ J}\\)`, `\\(${W * 2}\\text{ J}\\)`],
+          `\\(W = q\\Delta V = ${q} \\times ${dV} = ${W}\\text{ J}\\)।`
+        );
+      },
+      33: (f) => {
+        const C = pickRand([4, 5, 6, 8, 10]);
+        const V = pickRand([10, 20, 25, 50]);
+        const Q = C * V;
+        return makeParamQuiz(f,
+          `\\(${C}\\,\\mu\\text{F}\\) ধারকত্বের একটি ধারককে \\(${V}\\text{ V}\\) উৎসে যুক্ত করলে সঞ্চিত আধান কত?`,
+          `\\(${Q}\\,\\mu\\text{C}\\)`,
+          [`\\(${+(V / C).toFixed(2)}\\,\\mu\\text{C}\\)`, `\\(${Q / 2}\\,\\mu\\text{C}\\)`, `\\(${Q * 2}\\,\\mu\\text{C}\\)`],
+          `\\(Q = CV = ${C} \\times ${V} = ${Q}\\,\\mu\\text{C}\\)।`
+        );
+      },
+      34: (f) => {
+        const pairs = [[6, 3], [12, 4], [10, 10], [8, 8], [6, 6], [12, 6]];
+        const [c1, c2] = pickRand(pairs);
+        const Cs = +((c1 * c2) / (c1 + c2)).toFixed(2);
+        return makeParamQuiz(f,
+          `\\(${c1}\\,\\mu\\text{F}\\) ও \\(${c2}\\,\\mu\\text{F}\\) এর দুটি ধারক শ্রেণি সমবায়ে যুক্ত করলে তুল্য ধারকত্ব কত?`,
+          `\\(${Cs}\\,\\mu\\text{F}\\)`,
+          [`\\(${c1 + c2}\\,\\mu\\text{F}\\)`, `\\(${Math.abs(c1 - c2) || c1}\\,\\mu\\text{F}\\)`, `\\(${+(Cs * 2).toFixed(2)}\\,\\mu\\text{F}\\)`],
+          `শ্রেণি সমবায়ে \\(C_s = \\frac{C_1 C_2}{C_1 + C_2} = \\frac{${c1}\\times ${c2}}{${c1}+${c2}} = ${Cs}\\,\\mu\\text{F}\\)।`
+        );
+      },
+      36: (f) => {
+        const C = pickRand([2, 4, 6, 8, 10]);
+        const V = pickRand([10, 20, 30]);
+        const W = 0.5 * C * V * V;
+        return makeParamQuiz(f,
+          `\\(${C}\\,\\mu\\text{F}\\) ধারকে \\(${V}\\text{ V}\\) বিভব প্রয়োগ করলে সঞ্চিত শক্তি কত?`,
+          `\\(${W}\\,\\mu\\text{J}\\)`,
+          [`\\(${2 * W}\\,\\mu\\text{J}\\)`, `\\(${C * V}\\,\\mu\\text{J}\\)`, `\\(${W / 2}\\,\\mu\\text{J}\\)`],
+          `\\(W = \\frac{1}{2}CV^2 = \\frac{1}{2}\\times ${C}\\times ${V}^2 = ${W}\\,\\mu\\text{J}\\)।`
+        );
+      },
+      39: (f) => {
+        const Q = pickRand([12, 18, 24, 30, 40, 60]);
+        const t = pickRand([2, 3, 4, 6]);
+        const I = +(Q / t).toFixed(2);
+        return makeParamQuiz(f,
+          `কোনো পরিবাহীর মধ্য দিয়ে \\(${t}\\text{ s}\\) সময়ে \\(${Q}\\text{ C}\\) চার্জ প্রবাহিত হলে তড়িৎ প্রবাহ কত?`,
+          `\\(${I}\\text{ A}\\)`,
+          [`\\(${Q * t}\\text{ A}\\)`, `\\(${+(I * 2).toFixed(2)}\\text{ A}\\)`, `\\(${+(I / 2).toFixed(2)}\\text{ A}\\)`],
+          `\\(I = \\frac{Q}{t} = \\frac{${Q}}{${t}} = ${I}\\text{ A}\\)।`
+        );
+      },
+      40: (f) => {
+        const I = pickRand([2, 3, 4, 5]);
+        const R = pickRand([4, 5, 6, 8, 10]);
+        const P = I * I * R;
+        return makeParamQuiz(f,
+          `\\(${R}\\,\\Omega\\) রোধের মধ্য দিয়ে \\(${I}\\text{ A}\\) প্রবাহ চললে ব্যয়িত ক্ষমতা কত?`,
+          `\\(${P}\\text{ W}\\)`,
+          [`\\(${I * R}\\text{ W}\\)`, `\\(${I * R * R}\\text{ W}\\)`, `\\(${P / 2}\\text{ W}\\)`],
+          `\\(P = I^2 R = ${I}^2 \\times ${R} = ${P}\\text{ W}\\)।`
+        );
+      },
+      43: (f) => {
+        const pairs = [[6, 3], [12, 4], [10, 10], [8, 8], [12, 6], [20, 5]];
+        const [r1, r2] = pickRand(pairs);
+        const Rp = +((r1 * r2) / (r1 + r2)).toFixed(2);
+        return makeParamQuiz(f,
+          `\\(${r1}\\,\\Omega\\) ও \\(${r2}\\,\\Omega\\) এর দুটি রোধ সমান্তরালে যুক্ত করলে তুল্য রোধ কত?`,
+          `\\(${Rp}\\,\\Omega\\)`,
+          [`\\(${r1 + r2}\\,\\Omega\\)`, `\\(${+(Rp * 2).toFixed(2)}\\,\\Omega\\)`, `\\(${Math.abs(r1 - r2) || r1}\\,\\Omega\\)`],
+          `সমান্তরালে \\(R_p = \\frac{R_1 R_2}{R_1 + R_2} = \\frac{${r1}\\times ${r2}}{${r1}+${r2}} = ${Rp}\\,\\Omega\\)।`
+        );
+      },
+      44: (f) => {
+        const R = pickRand([4, 5, 7, 8, 9]);
+        const r = pickRand([1, 2]);
+        const I = pickRand([2, 3, 4]);
+        const E = I * (R + r);
+        return makeParamQuiz(f,
+          `\\(${E}\\text{ V}\\) তড়িচ্চালক শক্তি ও \\(${r}\\,\\Omega\\) অভ্যন্তরীণ রোধের কোষ \\(${R}\\,\\Omega\\) বহিঃরোধে যুক্ত করলে প্রবাহ কত?`,
+          `\\(${I}\\text{ A}\\)`,
+          [`\\(${+(E / R).toFixed(2)}\\text{ A}\\)`, `\\(${I + 1}\\text{ A}\\)`, `\\(${+(E / r).toFixed(2)}\\text{ A}\\)`],
+          `\\(I = \\frac{E}{R + r} = \\frac{${E}}{${R} + ${r}} = ${I}\\text{ A}\\)।`
+        );
+      },
+      45: (f) => {
+        const R1 = pickRand([2, 3, 4, 6]);
+        const R2 = pickRand([4, 6, 8, 12]);
+        const V = (R1 + R2) * pickRand([2, 3, 4]);
+        const V1 = (V * R1) / (R1 + R2);
+        return makeParamQuiz(f,
+          `\\(${R1}\\,\\Omega\\) ও \\(${R2}\\,\\Omega\\) রোধ শ্রেণিতে \\(${V}\\text{ V}\\) উৎসে যুক্ত থাকলে \\(${R1}\\,\\Omega\\) রোধের দুই প্রান্তের বিভব কত?`,
+          `\\(${V1}\\text{ V}\\)`,
+          [`\\(${V - V1}\\text{ V}\\)`, `\\(${V / 2}\\text{ V}\\)`, `\\(${V}\\text{ V}\\)`],
+          `বিভব বিভাজক সূত্র: \\(V_1 = \\frac{R_1}{R_1 + R_2}V = \\frac{${R1}}{${R1}+${R2}}\\times ${V} = ${V1}\\text{ V}\\)।`
+        );
+      },
+      115: (f) => PARAMETRIC_GENERATORS[45](f),
+      48: (f) => {
+        const P = pickRand([4, 6, 8, 10]);
+        const Q = pickRand([8, 12, 16, 20]);
+        const R = pickRand([5, 6, 10, 12]);
+        const S = +((Q * R) / P).toFixed(2);
+        return makeParamQuiz(f,
+          `একটি সুষম হুইটস্টোন ব্রিজে \\(P = ${P}\\,\\Omega\\), \\(Q = ${Q}\\,\\Omega\\), \\(R = ${R}\\,\\Omega\\) হলে চতুর্থ বাহুর রোধ \\(S\\) কত?`,
+          `\\(${S}\\,\\Omega\\)`,
+          [`\\(${+((P * R) / Q).toFixed(2)}\\,\\Omega\\)`, `\\(${S * 2}\\,\\Omega\\)`, `\\(${Q + R - P}\\,\\Omega\\)`],
+          `সাম্যাবস্থায় \\(\\frac{P}{Q} = \\frac{R}{S} \\Rightarrow S = \\frac{Q R}{P} = \\frac{${Q}\\times ${R}}{${P}} = ${S}\\,\\Omega\\)।`
+        );
+      },
+      116: (f) => PARAMETRIC_GENERATORS[48](f),
+      49: (f) => {
+        const n = pickRand([5, 6, 10, 11]);
+        const G = (n - 1) * pickRand([2, 5, 10]);
+        const S = G / (n - 1);
+        return makeParamQuiz(f,
+          `\\(${G}\\,\\Omega\\) রোধের গ্যালভানোমিটারের পাল্লা \\(${n}\\) গুণ করতে কত মানের শান্ট সমান্তরালে লাগাতে হবে?`,
+          `\\(${S}\\,\\Omega\\)`,
+          [`\\(${+(G / n).toFixed(2)}\\,\\Omega\\)`, `\\(${G * (n - 1)}\\,\\Omega\\)`, `\\(${S * 2}\\,\\Omega\\)`],
+          `\\(S = \\frac{G}{n - 1} = \\frac{${G}}{${n} - 1} = ${S}\\,\\Omega\\)।`
+        );
+      },
+      55: (f) => {
+        const q = pickRand([2, 3, 4]);
+        const v = pickRand([5, 10, 20]);
+        const B = pickRand([2, 3, 5]);
+        const F = q * v * B;
+        return makeParamQuiz(f,
+          `\\(${B}\\text{ T}\\) চৌম্বক ক্ষেত্রের সাথে লম্বভাবে \\(${v}\\text{ m/s}\\) বেগে গতিশীল \\(${q}\\text{ C}\\) চার্জের ওপর চৌম্বক বল কত?`,
+          `\\(${F}\\text{ N}\\)`,
+          [`\\(${F / 2}\\text{ N}\\)`, `\\(${F * 2}\\text{ N}\\)`, `\\(0\\text{ N}\\)`],
+          `লম্বভাবে প্রবেশ করায় \\(\\theta = 90^\\circ\\), তাই \\(F_B = qvB\\sin 90^\\circ = ${q}\\times ${v}\\times ${B} = ${F}\\text{ N}\\)।`
+        );
+      },
+      119: (f) => {
+        const B = pickRand([2, 4, 5]);
+        const v = pickRand([300, 400, 500, 600]);
+        const E = B * v;
+        return makeParamQuiz(f,
+          `একটি বেগ নির্বাচকে \\(E = ${E}\\text{ V/m}\\) এবং \\(B = ${B}\\text{ T}\\) হলে অবিচ্যুত কণার বেগ কত?`,
+          `\\(${v}\\text{ m/s}\\)`,
+          [`\\(${E * B}\\text{ m/s}\\)`, `\\(${v * 2}\\text{ m/s}\\)`, `\\(${v / 2}\\text{ m/s}\\)`],
+          `বেগ নির্বাচকে \\(v = \\frac{E}{B} = \\frac{${E}}{${B}} = ${v}\\text{ m/s}\\)।`
+        );
+      },
+      64: (f) => {
+        const L = pickRand([2, 4, 6, 8]);
+        const I = pickRand([3, 4, 5]);
+        const W = 0.5 * L * I * I;
+        return makeParamQuiz(f,
+          `\\(${L}\\text{ H}\\) স্বকীয় আবেশাঙ্কের কুণ্ডলীতে \\(${I}\\text{ A}\\) প্রবাহ চললে সঞ্চিত চৌম্বক শক্তি কত?`,
+          `\\(${W}\\text{ J}\\)`,
+          [`\\(${2 * W}\\text{ J}\\)`, `\\(${L * I}\\text{ J}\\)`, `\\(${W / 2}\\text{ J}\\)`],
+          `\\(W = \\frac{1}{2}LI^2 = \\frac{1}{2}\\times ${L}\\times ${I}^2 = ${W}\\text{ J}\\)।`
+        );
+      },
+      68: (f) => {
+        const Vp = pickRand([100, 200, 220, 240]);
+        const Np = pickRand([100, 200, 400]);
+        const mult = pickRand([2, 3, 4, 5]);
+        const Ns = Np * mult;
+        const Vs = Vp * mult;
+        return makeParamQuiz(f,
+          `একটি আদর্শ ট্রান্সফরমারের মুখ্য ও গৌণ পাকসংখ্যা \\(${Np}\\) ও \\(${Ns}\\)। মুখ্য বিভব \\(${Vp}\\text{ V}\\) হলে গৌণ বিভব কত?`,
+          `\\(${Vs}\\text{ V}\\)`,
+          [`\\(${Vp / mult}\\text{ V}\\)`, `\\(${Vs / 2}\\text{ V}\\)`, `\\(${Vp + Ns - Np}\\text{ V}\\)`],
+          `\\(\\frac{V_s}{V_p} = \\frac{N_s}{N_p} \\Rightarrow V_s = ${Vp}\\times \\frac{${Ns}}{${Np}} = ${Vs}\\text{ V}\\)।`
+        );
+      },
+      123: (f) => PARAMETRIC_GENERATORS[68](f),
+      71: (f) => {
+        const dReal = pickRand([12, 15, 18, 24, 30]);
+        const mu = 1.5;
+        const dApp = dReal / mu;
+        return makeParamQuiz(f,
+          `\\(\\mu = 1.5\\) প্রতিসরাঙ্কের কাচ স্ল্যাবের প্রকৃত পুরুত্ব \\(${dReal}\\text{ cm}\\) হলে লম্বভাবে দেখলে আপাত পুরুত্ব কত?`,
+          `\\(${dApp}\\text{ cm}\\)`,
+          [`\\(${dReal * mu}\\text{ cm}\\)`, `\\(${dReal - dApp}\\text{ cm}\\)`, `\\(${dReal / 2}\\text{ cm}\\)`],
+          `\\(d_{\\text{app}} = \\frac{d_{\\text{real}}}{\\mu} = \\frac{${dReal}}{1.5} = ${dApp}\\text{ cm}\\)।`
+        );
+      },
+      126: (f) => PARAMETRIC_GENERATORS[71](f),
+      75: (f) => {
+        const fCm = pickRand([20, 25, 40, 50, 100]);
+        const P = +(100 / fCm).toFixed(2);
+        return makeParamQuiz(f,
+          `একটি উত্তল লেন্সের ফোকাস দূরত্ব \\(+${fCm}\\text{ cm}\\) হলে এর ক্ষমতা কত?`,
+          `\\(+${P}\\text{ D}\\)`,
+          [`\\(-${P}\\text{ D}\\)`, `\\(+${+(1 / fCm).toFixed(3)}\\text{ D}\\)`, `\\(+${P * 2}\\text{ D}\\)`],
+          `\\(P = \\frac{100}{f(\\text{cm})} = \\frac{100}{${fCm}} = +${P}\\text{ D}\\)।`
+        );
+      },
+      77: (f) => {
+        const p1 = pickRand([2, 3, 4, 5, 6]);
+        const p2 = pickRand([-1, -2, -3, 2, 3]);
+        const P = p1 + p2;
+        return makeParamQuiz(f,
+          `\\(${p1 >= 0 ? '+' : ''}${p1}\\text{ D}\\) ও \\(${p2 >= 0 ? '+' : ''}${p2}\\text{ D}\\) ক্ষমতার দুটি লেন্স সংস্পর্শে রাখলে তুল্য ক্ষমতা কত?`,
+          `\\(${P >= 0 ? '+' : ''}${P}\\text{ D}\\)`,
+          [`\\(${p1 - p2}\\text{ D}\\)`, `\\(${p1 * p2}\\text{ D}\\)`, `\\(${P + 2}\\text{ D}\\)`],
+          `সংস্পর্শে থাকা লেন্সের তুল্য ক্ষমতা \\(P = P_1 + P_2 = (${p1}) + (${p2}) = ${P >= 0 ? '+' : ''}${P}\\text{ D}\\)।`
+        );
+      },
+      80: (f) => {
+        const fe = pickRand([2, 4, 5]);
+        const m = pickRand([10, 15, 20, 25]);
+        const fo = fe * m;
+        return makeParamQuiz(f,
+          `অসীমে ফোকাসিংয়ের ক্ষেত্রে একটি নভো দূরবীক্ষণের \\(f_o = ${fo}\\text{ cm}\\) ও \\(f_e = ${fe}\\text{ cm}\\) হলে বিবর্ধন কত?`,
+          `\\(${m}\\)`,
+          [`\\(${fo + fe}\\)`, `\\(${+(fe / fo).toFixed(2)}\\)`, `\\(${m + 1}\\)`],
+          `অসীমে ফোকাসিংয়ে \\(m = \\frac{f_o}{f_e} = \\frac{${fo}}{${fe}} = ${m}\\)।`
+        );
+      },
+      88: (f) => {
+        const I0 = pickRand([20, 40, 60, 80, 100]);
+        const ans = I0 / 4;
+        return makeParamQuiz(f,
+          `\\(${I0}\\text{ W/m}^2\\) তীব্রতার সমবর্তিত আলো বিশ্লেষকের সাথে \\(60^\\circ\\) কোণে আপতিত হলে নির্গত তীব্রতা কত?`,
+          `\\(${ans}\\text{ W/m}^2\\)`,
+          [`\\(${I0 / 2}\\text{ W/m}^2\\)`, `\\(${(3 * I0) / 4}\\text{ W/m}^2\\)`, `\\(${I0}\\text{ W/m}^2\\)`],
+          `ম্যালাসের সূত্র: \\(I = I_0 \\cos^2 60^\\circ = ${I0}\\times \\left(\\frac{1}{2}\\right)^2 = ${ans}\\text{ W/m}^2\\)।`
+        );
+      },
+      89: (f) => {
+        const lam = pickRand([200, 310, 400, 620]);
+        const E = +(1240 / lam).toFixed(2);
+        return makeParamQuiz(f,
+          `\\(${lam}\\text{ nm}\\) তরঙ্গদৈর্ঘ্যের একটি ফোটনের শক্তি ইলেকট্রন-ভোল্ট (\\(\\text{eV}\\)) এককে কত?`,
+          `\\(${E}\\text{ eV}\\)`,
+          [`\\(${+(E * 2).toFixed(2)}\\text{ eV}\\)`, `\\(${+(E / 2).toFixed(2)}\\text{ eV}\\)`, `\\(${+(E + 1).toFixed(2)}\\text{ eV}\\)`],
+          `শর্টকাট: \\(E = \\frac{1240}{\\lambda(\\text{nm})} = \\frac{1240}{${lam}} = ${E}\\text{ eV}\\)।`
+        );
+      },
+      132: (f) => PARAMETRIC_GENERATORS[89](f),
+      90: (f) => {
+        const W0 = pickRand([2.0, 2.5, 3.0, 3.5]);
+        const hf = W0 + pickRand([1.5, 2.0, 2.5, 3.0]);
+        const Kmax = +(hf - W0).toFixed(2);
+        return makeParamQuiz(f,
+          `কোনো ধাতুর কার্যঅপেক্ষক \\(${W0}\\text{ eV}\\)। এতে \\(${hf}\\text{ eV}\\) শক্তির ফোটন আপতিত হলে নির্গত ইলেকট্রনের সর্বোচ্চ গতিশক্তি কত?`,
+          `\\(${Kmax}\\text{ eV}\\)`,
+          [`\\(${+(hf + W0).toFixed(2)}\\text{ eV}\\)`, `\\(${hf}\\text{ eV}\\)`, `\\(${W0}\\text{ eV}\\)`],
+          `আইনস্টাইনের সমীকরণ: \\(K_{\\max} = hf - W_0 = ${hf} - ${W0} = ${Kmax}\\text{ eV}\\)।`
+        );
+      },
+      99: (f) => {
+        const T = pickRand([2, 3, 4, 5, 10]);
+        const n = pickRand([2, 3, 4]);
+        const t = T * n;
+        const N0 = pickRand([16, 32, 64, 80, 160]);
+        const N = N0 / Math.pow(2, n);
+        return makeParamQuiz(f,
+          `কোনো তেজস্ক্রিয় মৌলের অর্ধায়ু \\(${T}\\text{ দিন}\\) এবং প্রাথমিক পরিমাণ \\(${N0}\\text{ g}\\)। \\(${t}\\text{ দিন}\\) পর কতটুকু অবশিষ্ট থাকবে?`,
+          `\\(${N}\\text{ g}\\)`,
+          [`\\(${N0 - N}\\text{ g}\\)`, `\\(${N * 2}\\text{ g}\\)`, `\\(${N0 / n}\\text{ g}\\)`],
+          `অর্ধায়ুর সংখ্যা \\(n = \\frac{${t}}{${T}} = ${n}\\)। অবশিষ্ট \\(N = \\frac{N_0}{2^n} = \\frac{${N0}}{2^{${n}}} = ${N}\\text{ g}\\)।`
+        );
+      },
+      101: (f) => {
+        const IB = pickRand([20, 40, 50, 100]);
+        const beta = pickRand([50, 80, 100, 120]);
+        const IC = (IB * beta) / 1000;
+        return makeParamQuiz(f,
+          `একটি ট্রানজিস্টরের \\(\\beta = ${beta}\\) এবং পীঠ প্রবাহ \\(I_B = ${IB}\\,\\mu\\text{A}\\) হলে সংগ্রাহক প্রবাহ \\(I_C\\) কত?`,
+          `\\(${IC}\\text{ mA}\\)`,
+          [`\\(${IC * 10}\\text{ mA}\\)`, `\\(${+(IC / 2).toFixed(2)}\\text{ mA}\\)`, `\\(${+(IB / beta).toFixed(2)}\\text{ mA}\\)`],
+          `\\(I_C = \\beta I_B = ${beta} \\times ${IB}\\times 10^{-6}\\text{ A} = ${IC}\\text{ mA}\\)।`
+        );
+      },
+      142: (f) => PARAMETRIC_GENERATORS[101](f),
+      103: (f) => {
+        const H = 70;
+        const d = pickRand([10, 20, 30, 50, 100]);
+        const v = H * d;
+        return makeParamQuiz(f,
+          `হাবল ধ্রুবক \\(H_0 = 70\\text{ km s}^{-1}\\text{Mpc}^{-1}\\) হলে \\(${d}\\text{ Mpc}\\) দূরের ছায়াপথের অপসারণ বেগ কত?`,
+          `\\(${v}\\text{ km/s}\\)`,
+          [`\\(${v / 2}\\text{ km/s}\\)`, `\\(${v * 2}\\text{ km/s}\\)`, `\\(${+(H / d).toFixed(2)}\\text{ km/s}\\)`],
+          `হাবলের সূত্র: \\(v = H_0 d = 70 \\times ${d} = ${v}\\text{ km/s}\\)।`
+        );
+      }
+    };
+
+    function buildImmediateVariantQuiz(origQuiz, avoidPromptHtml = '') {
+      const f = FORMULAS[origQuiz.formulaId] || origQuiz.formula;
+      if (f && PARAMETRIC_GENERATORS[f.id]) {
+        let gen = PARAMETRIC_GENERATORS[f.id](f);
+        for (let tries = 0; tries < 5 && (gen.promptHtml === origQuiz.promptHtml || gen.promptHtml === avoidPromptHtml); tries++) {
+          gen = PARAMETRIC_GENERATORS[f.id](f);
+        }
+        return gen;
+      }
+      // Try another numerical handcrafted quiz for the exact same formulaId
+      const siblings = (QUIZZES_BY_FORMULA[origQuiz.formulaId] || []).filter(hq => {
+        return hq.type === 'numerical' && !origQuiz.promptHtml.includes(hq.question.slice(0, 28));
+      });
+      if (siblings.length > 0) {
+        const alt = buildHandcraftedQuizObj(pickRand(siblings));
+        alt.badge = 'ভিন্ন মানে পুনরায় যাচাই';
+        alt.badgeCls = 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300';
+        alt.diffText = 'নতুন মান';
+        alt.diffCls = 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300';
+        return alt;
+      }
+      // Fallback for numerical quiz without a parametric template: same question with freshly shuffled options
+      return {
+        ...origQuiz,
+        quizType: 'numerical',
+        badge: 'একই অঙ্ক পুনরায় যাচাই',
+        badgeCls: 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300',
+        diffText: 'শেষ সুযোগ',
+        diffCls: 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300',
+        options: shuffle([...origQuiz.options])
+      };
+    }
+
+    function findLearnLessonForFormula(formulaId) {
+      return ALL_LESSONS.find(l => l.type !== 'boss' && l.formulaIds.includes(formulaId)) || null;
+    }
+
+    function redirectToRelatedLesson(formulaId, missedQuiz) {
+      clearLessonTimers();
+      const targetLes = findLearnLessonForFormula(formulaId);
+      const f = FORMULAS[formulaId];
+      if (!targetLes) {
+        closeLessonOverlay();
+        return;
+      }
+      // Build a brand-new different-values question to appear IMMEDIATELY after re-reading the Learn Slide!
+      const freshAfterLessonQuiz = buildImmediateVariantQuiz(
+        missedQuiz || { formulaId, promptHtml: '', options: [], formula: f, quizType: 'numerical' },
+        missedQuiz ? missedQuiz.promptHtml : ''
+      );
+      freshAfterLessonQuiz.badge = 'লেসন শেষে নতুন মানে যাচাই';
+      const postLearnStep = {
+        type: 'quiz',
+        quiz: freshAfterLessonQuiz,
+        isRetry: true,
+        isImmediateRetry: false,
+        fromRemediation: true
+      };
+
+      // If we're already inside that exact regular lesson, jump right back to its Learn Slide + place fresh-values quiz right after it!
+      if (activeLesson && activeLesson.lesson.id === targetLes.id) {
+        const learnIdx = activeLesson.steps.findIndex(s => s.type === 'learn' && s.formula && s.formula.id === formulaId);
+        if (learnIdx !== -1) {
+          activeLesson.steps = activeLesson.steps.filter((s, i) => !(i > learnIdx && (s.isImmediateRetry || s.fromRemediation)));
+          activeLesson.steps.splice(learnIdx + 1, 0, postLearnStep);
+          activeLesson.idx = learnIdx;
+          activeLesson.selectedOptionIdx = null;
+          activeLesson.checked = false;
+          activeLesson.lastCorrect = false;
+          activeLesson.timedOut = false;
+          activeLesson.needsRedirectToLesson = false;
+          activeLesson.redirectFormulaId = null;
+          activeLesson.redirectMissedQuiz = null;
+          activeLesson.dwellLeft = state.strictMode ? 5 : 0;
+          activeLesson.learnConfirmed = false;
+          activeLesson.exampleRevealed = false;
+          activeLesson.explainCooldown = 0;
+          const lb = document.getElementById('lesson-body');
+          if (lb) lb.scrollTop = 0;
+          renderLessonStep();
+          showToast(`📖 মূল স্লাইডে ফেরত আনা হয়েছে: ${f ? f.topic : targetLes.title} — পড়ার পর নতুন মানের প্রশ্ন আসবে!`);
+          return;
+        }
+      }
+      // Otherwise (e.g., from a Boss Quiz or another lesson), open the related regular lesson at that formula's learn slide + place fresh-values quiz right after it!
+      const initSteps = buildLessonSteps(targetLes);
+      const learnIdx = Math.max(0, initSteps.findIndex(s => s.type === 'learn' && s.formula && s.formula.id === formulaId));
+      initSteps.splice(learnIdx + 1, 0, postLearnStep);
+      activeLesson = {
+        lesson: targetLes,
+        steps: initSteps,
+        idx: learnIdx,
+        selectedOptionIdx: null,
+        checked: false,
+        lastCorrect: false,
+        timedOut: false,
+        needsRedirectToLesson: false,
+        redirectFormulaId: null,
+        redirectMissedQuiz: null,
+        firstAttemptTotal: initSteps.filter(s => s.type === 'quiz').length,
+        firstAttemptCorrect: 0,
+        requeuedCount: 0,
+        quizTotal: initSteps.filter(s => s.type === 'quiz').length,
+        quizCorrect: 0,
+        xpEarned: 0,
+        finished: false,
+        passed: true,
+        dwellLeft: state.strictMode ? 5 : 0,
+        learnConfirmed: false,
+        exampleRevealed: false,
+        explainCooldown: 0,
+        bossTimeLeft: 45
+      };
+      const ov = document.getElementById('lesson-overlay');
+      ov.classList.remove('hidden');
+      ov.classList.add('flex');
+      const lb = document.getElementById('lesson-body');
+      if (lb) lb.scrollTop = 0;
+      renderLessonStep();
+      showToast(`📖 সংশ্লিষ্ট লেসনে ফেরত পাঠানো হয়েছে (লেসন ${targetLes.number}): ${f ? f.topic : targetLes.title} — পড়ার পর নতুন মানের প্রশ্ন আসবে!`);
+    }
+
     function requeueMissedStep(step) {
       if (!state.strictMode || !activeLesson) return;
-      const clonedQuiz = {
-        ...step.quiz,
-        options: shuffle([...step.quiz.options])
-      };
-      activeLesson.steps.push({ type: 'quiz', quiz: clonedQuiz, isRetry: true });
+      // Skip immediate value-variant & lesson-redirect for conceptual/unit/graph/trap questions
+      if (!isNumericalQuiz(step.quiz)) return;
+      if (step.isImmediateRetry) {
+        activeLesson.needsRedirectToLesson = true;
+        activeLesson.redirectFormulaId = step.quiz.formulaId;
+        activeLesson.redirectMissedQuiz = step.quiz;
+        return;
+      }
+      const variantQuiz = buildImmediateVariantQuiz(step.quiz);
+      activeLesson.steps.splice(activeLesson.idx + 1, 0, {
+        type: 'quiz',
+        quiz: variantQuiz,
+        isRetry: true,
+        isImmediateRetry: true
+      });
       activeLesson.requeuedCount++;
     }
 
@@ -2040,6 +2618,15 @@
     function advanceLessonStep() {
       if (!activeLesson) return;
       clearLessonTimers();
+      if (activeLesson.needsRedirectToLesson && activeLesson.redirectFormulaId !== null && activeLesson.redirectFormulaId !== undefined) {
+        const targetFid = activeLesson.redirectFormulaId;
+        const missedQ = activeLesson.redirectMissedQuiz;
+        activeLesson.needsRedirectToLesson = false;
+        activeLesson.redirectFormulaId = null;
+        activeLesson.redirectMissedQuiz = null;
+        redirectToRelatedLesson(targetFid, missedQ);
+        return;
+      }
       if (!state.unlimitedHearts && state.hearts <= 0 && !activeLesson.finished) {
         openEarnHeartsModal();
         return;
