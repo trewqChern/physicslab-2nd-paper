@@ -589,6 +589,8 @@
       lastStudyDate: null,
       hearts: 5,
       unlimitedHearts: false,
+      strictMode: true,
+      recoveryCorrectCount: 0,
       soundEnabled: true,
       darkMode: false,
       completedLessons: {},
@@ -987,6 +989,51 @@
     // =========================================================================
     // 8. TAB 1: LEARN (SOLOLEARN COURSE PATH)
     // =========================================================================
+
+    function isLessonUnlocked(lesson) {
+      if (!state.strictMode) return true;
+      const ch = COURSE.find(c => c.num === lesson.ch);
+      if (!ch) return true;
+      const idx = ch.lessons.findIndex(l => l.id === lesson.id);
+      if (idx <= 0) return true; // First lesson of each chapter is open so students can start any chapter
+      const prevLes = ch.lessons[idx - 1];
+      return !!state.completedLessons[prevLes.id];
+    }
+
+    function openStrictModeModal() {
+      const on = !!state.strictMode;
+      openModal(
+        on ? '🔒 স্ট্রিক্ট লার্নিং মোড চালু আছে' : '🔓 স্ট্রিক্ট লার্নিং মোড বন্ধ আছে',
+        `<div class="space-y-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          <p class="font-semibold text-slate-800 dark:text-white">প্রকৃত শেখা নিশ্চিত করতে নিচের নিয়মগুলো প্রয়োগ করা হয়েছে:</p>
+          <ul class="list-disc pl-5 space-y-1">
+            <li><strong>সক্রিয় পাঠ গেট:</strong> প্রতিটি শেখার স্লাইডে কমপক্ষে ৫ সেকেন্ড পড়া + উদাহরণ যাচাই + "বুঝেছি" চেকবক্স পূরণ বাধ্যতামূলক।</li>
+            <li><strong>ভুল সংশোধন লুপ:</strong> কোনো কুইজ ভুল হলে সেটি লেসনের শেষে নতুন অপশন ক্রমে আবার আসবে—সঠিক না করা পর্যন্ত শেষ হবে না।</li>
+            <li><strong>পাসিং মার্ক:</strong> সাধারণ লেসনে ≥৭৫% এবং বস কুইজে ≥৮০% প্রথম-চেষ্টার সঠিকতা ছাড়া লেসন পাস ও পরেরটি আনলক হবে না।</li>
+            <li><strong>বস কুইজ টাইমার:</strong> ঢাবি পরীক্ষার গতিতে প্রতিটি বস প্রশ্নে ৪৫ সেকেন্ড সময়।</li>
+            <li><strong>হার্ট অর্জন:</strong> হার্ট শেষ হলে ফ্রি রিফিল নেই—রিভিশন ড্রিল (SRS) এ প্রতি ২টি সঠিক উত্তরে +১ ❤️ অর্জন করতে হবে।</li>
+          </ul>
+        </div>`,
+        [
+          { label: 'বন্ধ করুন' },
+          {
+            label: on ? 'স্ট্রিক্ট মোড বন্ধ করুন' : 'স্ট্রিক্ট মোড চালু করুন 🔒',
+            cls: on
+              ? 'px-4 py-2 rounded-xl text-sm font-bold bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white'
+              : 'px-4 py-2 rounded-xl text-sm font-bold bg-[#2493DF] text-white',
+            onClick: () => {
+              state.strictMode = !state.strictMode;
+              if (state.strictMode) state.unlimitedHearts = false;
+              saveState();
+              updateHud();
+              renderCurrentTab();
+              showToast(state.strictMode ? '🔒 স্ট্রিক্ট লার্নিং মোড চালু হয়েছে!' : '🔓 স্ট্রিক্ট লার্নিং মোড বন্ধ করা হয়েছে');
+            }
+          }
+        ]
+      );
+    }
+
     function renderLearnView() {
       const main = document.getElementById('app-main');
       const completedCount = Object.keys(state.completedLessons).length;
@@ -1001,8 +1048,13 @@
           <div class="absolute -right-8 -top-8 w-44 h-44 rounded-full bg-white/10 blur-xl pointer-events-none"></div>
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
             <div>
-              <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-xs font-bold mb-2">
-                <span>${rank.badge}</span><span>লেভেল ${toBnNum(rank.level)} · ${rank.name}</span>
+              <div class="flex items-center gap-2 flex-wrap mb-2">
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-xs font-bold">
+                  <span>${rank.badge}</span><span>লেভেল ${toBnNum(rank.level)} · ${rank.name}</span>
+                </div>
+                <button id="strict-mode-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${state.strictMode ? 'bg-amber-400/25 border border-amber-300/60 text-amber-100' : 'bg-white/15 border border-white/25 text-sky-100'} text-[11px] font-extrabold hover:bg-white/25 transition">
+                  ${state.strictMode ? '🔒 স্ট্রিক্ট মোড চালু · ≥৭৫% পাস' : '🔓 স্ট্রিক্ট মোড বন্ধ'}
+                </button>
               </div>
               <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight">পদার্থবিজ্ঞান ২য় পত্র — মাস্টারি পাথ</h1>
               <p class="text-sky-100 text-sm mt-1">১১টি অধ্যায় · ১৪৭টি সূত্র ও কনসেপ্ট · ৪১৫ কুইজ · ৮০ ঢাবি প্রশ্ন</p>
@@ -1079,40 +1131,43 @@
 
           ch.lessons.forEach((les, i) => {
             const done = state.completedLessons[les.id];
-            const isNext = nextLesson.id === les.id;
+            const unlocked = isLessonUnlocked(les);
+            const isNext = nextLesson.id === les.id && unlocked;
             const isBoss = les.type === 'boss';
+            const prevLes = i > 0 ? ch.lessons[i - 1] : null;
             const offsetCls = i % 2 === 1 ? 'sm:translate-x-6' : (i > 0 ? 'sm:-translate-x-6' : '');
-            const circleCls = done
-              ? 'bg-emerald-500 text-white border-emerald-200 dark:border-emerald-800'
-              : isNext
-                ? 'bg-[#2493DF] text-white border-sky-200 dark:border-sky-800 node-active'
-                : isBoss
-                  ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700';
+            const circleCls = !unlocked
+              ? 'bg-slate-100 dark:bg-slate-800/70 text-slate-400 border-slate-200 dark:border-slate-700'
+              : done
+                ? 'bg-emerald-500 text-white border-emerald-200 dark:border-emerald-800'
+                : isNext
+                  ? 'bg-[#2493DF] text-white border-sky-200 dark:border-sky-800 node-active'
+                  : isBoss
+                    ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700';
 
             if (i > 0) {
               html += `<div class="lesson-connector ${done ? 'bg-emerald-400' : 'bg-slate-200 dark:bg-slate-700'}"></div>`;
             }
 
             html += `
-              <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-white dark:bg-slate-900 border ${isNext ? 'border-[#2493DF] ring-1 ring-[#2493DF]/30' : 'border-slate-200/90 dark:border-slate-800'} shadow-sm hover:shadow-md transition ${offsetCls}">
+              <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-white dark:bg-slate-900 border ${isNext ? 'border-[#2493DF] ring-1 ring-[#2493DF]/30' : 'border-slate-200/90 dark:border-slate-800'} ${!unlocked ? 'opacity-70' : 'hover:shadow-md'} shadow-sm transition ${offsetCls}">
                 <button data-start-lesson="${les.id}" class="w-12 h-12 rounded-2xl border-2 flex items-center justify-center font-extrabold text-sm shrink-0 transition active:scale-95 ${circleCls}">
-                  ${done ? '✓' : les.number}
+                  ${!unlocked ? '🔒' : (done ? '✓' : les.number)}
                 </button>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2">
                     <span class="text-sm font-bold text-slate-900 dark:text-white truncate">${les.title}</span>
-                    ${isBoss ? '<span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">BOSS</span>' : ''}
+                    ${isBoss ? '<span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">BOSS · ≥৮০%</span>' : ''}
                   </div>
                   <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
-                    <span>${toBnNum(les.formulaIds.length)}টি সূত্র</span>
-                    <span>·</span>
-                    <span class="text-[#2493DF] font-semibold">+${toBnNum(les.xpReward)} XP</span>
-                    ${done ? `<span>·</span><span class="text-amber-500 font-bold">${'★'.repeat(done.stars)}${'☆'.repeat(3 - done.stars)}</span>` : ''}
+                    ${!unlocked && prevLes
+                      ? `<span class="text-amber-600 dark:text-amber-400 font-semibold">আগে লেসন ${prevLes.number} পাস করো</span>`
+                      : `<span>${toBnNum(les.formulaIds.length)}টি সূত্র</span><span>·</span><span class="text-[#2493DF] font-semibold">+${toBnNum(les.xpReward)} XP</span>${done ? `<span>·</span><span class="text-amber-500 font-bold">${'★'.repeat(done.stars)}${'☆'.repeat(3 - done.stars)}</span><span class="text-emerald-600 dark:text-emerald-400 font-bold">(${toBnNum(done.bestAccuracy)}%)</span>` : ''}`}
                   </div>
                 </div>
-                <button data-start-lesson="${les.id}" class="px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition active:scale-95 ${done ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100' : 'bg-[#2493DF] text-white hover:bg-[#1B76B8]'}">
-                  ${done ? 'পুনরায়' : (isNext ? 'শুরু করুন' : 'খুলুন')}
+                <button data-start-lesson="${les.id}" class="px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition active:scale-95 ${!unlocked ? 'bg-slate-100 dark:bg-slate-800 text-slate-400' : (done ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100' : 'bg-[#2493DF] text-white hover:bg-[#1B76B8]')}">
+                  ${!unlocked ? '🔒 লকড' : (done ? 'পুনরায়' : (isNext ? 'শুরু করুন' : 'খুলুন'))}
                 </button>
               </div>
             `;
@@ -1129,6 +1184,8 @@
 
       const cta = document.getElementById('continue-cta');
       if (cta) cta.addEventListener('click', () => startLesson(cta.dataset.lesson));
+      const smBtn = document.getElementById('strict-mode-badge');
+      if (smBtn) smBtn.addEventListener('click', openStrictModeModal);
 
       main.querySelectorAll('[data-toggle-ch]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1386,6 +1443,15 @@
     // 9. SOLOLEARN INTERACTIVE LESSON RUNNER
     // =========================================================================
     let activeLesson = null;
+    let lessonDwellTimer = null;
+    let lessonBossTimer = null;
+    let lessonCooldownTimer = null;
+
+    function clearLessonTimers() {
+      if (lessonDwellTimer) { clearInterval(lessonDwellTimer); lessonDwellTimer = null; }
+      if (lessonBossTimer) { clearInterval(lessonBossTimer); lessonBossTimer = null; }
+      if (lessonCooldownTimer) { clearInterval(lessonCooldownTimer); lessonCooldownTimer = null; }
+    }
 
     function buildLessonSteps(lesson) {
       const fList = lesson.formulaIds.map(id => FORMULAS[id]);
@@ -1436,39 +1502,77 @@
       return steps;
     }
 
+    function openEarnHeartsModal() {
+      openModal(
+        'হার্ট শেষ হয়ে গেছে ❤️',
+        state.strictMode
+          ? 'স্ট্রিক্ট মোডে ফ্রি হার্ট রিফিল নেই! প্র্যাকটিস অ্যারেনার <strong>দুর্বল সূত্র রিভিশন (SRS)</strong>-এ প্রতি ২টি সঠিক উত্তরে +১ ❤️ অর্জন করুন।'
+          : 'আপনার ৫টি হার্ট শেষ হয়ে গেছে। রিভিশন করে অথবা রিফিল করে শেখা চালিয়ে যেতে পারেন।',
+        state.strictMode
+          ? [
+              { label: 'বন্ধ করুন' },
+              {
+                label: 'রিভিশন ড্রিল শুরু করুন (+❤️)',
+                cls: 'px-4 py-2 rounded-xl text-sm font-bold bg-rose-600 text-white hover:bg-rose-700',
+                onClick: () => {
+                  closeLessonOverlay();
+                  currentTab = 'practice';
+                  practiceMode = 'srs';
+                  renderCurrentTab();
+                }
+              }
+            ]
+          : [
+              { label: 'বাতিল' },
+              {
+                label: 'হার্ট রিফিল করুন (৫ ❤️)',
+                cls: 'px-4 py-2 rounded-xl text-sm font-bold bg-[#2493DF] text-white hover:bg-[#1B76B8]',
+                onClick: () => { state.hearts = 5; saveState(); updateHud(); }
+              }
+            ]
+      );
+    }
+
     function startLesson(lessonId) {
       const lesson = ALL_LESSONS.find(l => l.id === lessonId);
       if (!lesson) return;
+      if (!isLessonUnlocked(lesson)) {
+        const ch = COURSE.find(c => c.num === lesson.ch);
+        const idx = ch ? ch.lessons.findIndex(l => l.id === lesson.id) : 0;
+        const prevLes = ch && idx > 0 ? ch.lessons[idx - 1] : null;
+        showToast(prevLes ? `🔒 আগে লেসন ${prevLes.number} পাস করুন (≥৭৫%)!` : '🔒 আগের লেসনটি আগে পাস করুন!');
+        playTone('wrong');
+        return;
+      }
       if (!state.unlimitedHearts && state.hearts <= 0) {
-        openModal(
-          'হার্ট শেষ হয়ে গেছে ❤️',
-          'আপনার ৫টি হার্ট শেষ হয়ে গেছে। ফ্রি প্র্যাকটিস মোডে হার্ট রিফিল করে এখনই শেখা চালিয়ে যেতে পারেন!',
-          [
-            { label: 'বাতিল' },
-            {
-              label: 'হার্ট রিফিল করুন (৫ ❤️)',
-              cls: 'px-4 py-2 rounded-xl text-sm font-bold bg-[#2493DF] text-white hover:bg-[#1B76B8]',
-              onClick: () => { state.hearts = 5; saveState(); updateHud(); startLesson(lessonId); }
-            }
-          ]
-        );
+        openEarnHeartsModal();
         return;
       }
 
+      clearLessonTimers();
       playTone('tap');
+      const initSteps = buildLessonSteps(lesson);
       activeLesson = {
         lesson,
-        steps: buildLessonSteps(lesson),
+        steps: initSteps,
         idx: 0,
         selectedOptionIdx: null,
         checked: false,
         lastCorrect: false,
-        quizTotal: 0,
+        firstAttemptTotal: initSteps.filter(s => s.type === 'quiz').length,
+        firstAttemptCorrect: 0,
+        requeuedCount: 0,
+        quizTotal: initSteps.filter(s => s.type === 'quiz').length,
         quizCorrect: 0,
         xpEarned: 0,
-        finished: false
+        finished: false,
+        passed: true,
+        dwellLeft: state.strictMode ? 5 : 0,
+        learnConfirmed: false,
+        exampleRevealed: false,
+        explainCooldown: 0,
+        bossTimeLeft: 45
       };
-      activeLesson.quizTotal = activeLesson.steps.filter(s => s.type === 'quiz').length;
 
       const ov = document.getElementById('lesson-overlay');
       ov.classList.remove('hidden');
@@ -1477,6 +1581,7 @@
     }
 
     function closeLessonOverlay() {
+      clearLessonTimers();
       const ov = document.getElementById('lesson-overlay');
       ov.classList.add('hidden');
       ov.classList.remove('flex');
@@ -1564,21 +1669,31 @@
             </div>`
           : '';
 
+        const hideSol = state.strictMode && !activeLesson.exampleRevealed && hasEx && (ex.steps?.length || ex.answer);
         const exampleHtml = hasEx
           ? `<div class="bg-emerald-50/80 dark:bg-emerald-950/25 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/50 p-4 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
-              <div class="text-xs font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-2">📝 হাতে-কলমে উদাহরণ</div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <div class="text-xs font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">📝 হাতে-কলমে উদাহরণ</div>
+                ${state.strictMode ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">অ্যাক্টিভ রিকল</span>` : ''}
+              </div>
               ${ex.problem ? `<div class="font-semibold text-slate-900 dark:text-white mb-2.5 math-scroll">${ex.problem}</div>` : ''}
-              ${Array.isArray(ex.steps) && ex.steps.length > 0 ? `
-                <div class="space-y-2 mb-2.5">
-                  ${ex.steps.map((st, sIdx) => `
-                    <div class="step-item">
-                      <span class="step-num">${toBnNum(sIdx + 1)}</span>
-                      <div class="flex-1 text-slate-700 dark:text-slate-200 math-scroll">${st}</div>
-                    </div>
-                  `).join('')}
-                </div>
-              ` : ''}
-              ${ex.answer ? `<div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/15 dark:bg-emerald-500/20 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs sm:text-sm math-scroll">✅ উত্তর: ${ex.answer}</div>` : ''}
+              ${hideSol ? `
+                <button id="les-reveal-ex-btn" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-sm active:scale-[0.99] transition">
+                  🧠 আগে মনে মনে চেষ্টা করো → তারপর সমাধান দেখো
+                </button>
+              ` : `
+                ${Array.isArray(ex.steps) && ex.steps.length > 0 ? `
+                  <div class="space-y-2 mb-2.5">
+                    ${ex.steps.map((st, sIdx) => `
+                      <div class="step-item">
+                        <span class="step-num">${toBnNum(sIdx + 1)}</span>
+                        <div class="flex-1 text-slate-700 dark:text-slate-200 math-scroll">${st}</div>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : ''}
+                ${ex.answer ? `<div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/15 dark:bg-emerald-500/20 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs sm:text-sm math-scroll">✅ উত্তর: ${ex.answer}</div>` : ''}
+              `}
             </div>`
           : (f.quickExample ? `<div class="bg-emerald-50/80 dark:bg-emerald-950/25 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/50 p-4 text-sm leading-relaxed text-slate-800 dark:text-slate-200 math-scroll"><div class="text-xs font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-1">📝 চটজলদি উদাহরণ</div>${f.quickExample}</div>` : '');
 
@@ -1626,24 +1741,85 @@
           const st = getFormulaStat(f.id);
           st.bookmarked = !st.bookmarked;
           saveState();
-          renderLessonStep();
+          const btn = document.getElementById('les-bm-btn');
+          if (btn) {
+            btn.textContent = st.bookmarked ? '★ বুকমার্কড' : '☆ বুকমার্ক';
+            btn.className = `px-3 py-1 rounded-full text-xs font-bold border transition ${st.bookmarked ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-300 text-amber-600' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'}`;
+          }
         });
 
+        const revExBtn = document.getElementById('les-reveal-ex-btn');
+        if (revExBtn) {
+          revExBtn.addEventListener('click', () => {
+            playTone('tap');
+            activeLesson.exampleRevealed = true;
+            const lb = document.getElementById('lesson-body');
+            const scrollPos = lb ? lb.scrollTop : 0;
+            renderLessonStep();
+            if (lb) lb.scrollTop = scrollPos;
+          });
+        }
+
+        clearLessonTimers();
+        if (state.strictMode && activeLesson.dwellLeft === undefined) {
+          activeLesson.dwellLeft = 5;
+        }
+        const updateLearnGateBtn = () => {
+          const nextBtn = document.getElementById('les-next-btn');
+          if (!nextBtn) return;
+          const locked = state.strictMode && (activeLesson.dwellLeft > 0 || !activeLesson.learnConfirmed);
+          nextBtn.disabled = locked;
+          if (state.strictMode && activeLesson.dwellLeft > 0) {
+            nextBtn.textContent = `মনোযোগ দিয়ে পড়ুন (${toBnNum(activeLesson.dwellLeft)} সে.)`;
+          } else if (state.strictMode && !activeLesson.learnConfirmed) {
+            nextBtn.textContent = 'আগে চেকবক্সে টিক দিন ↑';
+          } else {
+            nextBtn.textContent = 'বুঝেছি, এগিয়ে যান →';
+          }
+          nextBtn.className = `w-full sm:w-auto px-7 py-3 rounded-xl font-extrabold text-sm transition ${locked ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-[#2493DF] hover:bg-[#1B76B8] text-white shadow-sm active:scale-95'}`;
+        };
+
         footerInner.innerHTML = `
-          <div class="flex items-center justify-between gap-3">
-            <span class="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">ধারণা, প্রতীক ও উদাহরণ দেখে এগিয়ে যান (Enter)</span>
-            <button id="les-next-btn" class="w-full sm:w-auto px-7 py-3 rounded-xl bg-[#2493DF] hover:bg-[#1B76B8] text-white font-extrabold text-sm shadow-sm active:scale-95 transition">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            ${state.strictMode ? `
+              <label class="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                <input id="les-confirm-chk" type="checkbox" ${activeLesson.learnConfirmed ? 'checked' : ''} class="w-4 h-4 rounded accent-[#2493DF]" />
+                <span>সূত্র/কনসেপ্ট, প্রতীক ও পরীক্ষার ফাঁদটি বুঝেছি</span>
+              </label>
+            ` : `<span class="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">ধারণা, প্রতীক ও উদাহরণ দেখে এগিয়ে যান (Enter)</span>`}
+            <button id="les-next-btn" class="w-full sm:w-auto px-7 py-3 rounded-xl font-extrabold text-sm transition">
               বুঝেছি, এগিয়ে যান →
             </button>
           </div>
         `;
-        document.getElementById('les-next-btn').addEventListener('click', advanceLessonStep);
+        const chkBox = document.getElementById('les-confirm-chk');
+        if (chkBox) {
+          chkBox.addEventListener('change', () => {
+            playTone('tap');
+            activeLesson.learnConfirmed = chkBox.checked;
+            updateLearnGateBtn();
+          });
+        }
+        document.getElementById('les-next-btn').addEventListener('click', () => {
+          if (state.strictMode && (activeLesson.dwellLeft > 0 || !activeLesson.learnConfirmed)) return;
+          advanceLessonStep();
+        });
+        updateLearnGateBtn();
+        if (state.strictMode && activeLesson.dwellLeft > 0) {
+          lessonDwellTimer = setInterval(() => {
+            if (!activeLesson || activeLesson.finished) { clearLessonTimers(); return; }
+            activeLesson.dwellLeft = Math.max(0, activeLesson.dwellLeft - 1);
+            updateLearnGateBtn();
+            if (activeLesson.dwellLeft <= 0) { clearInterval(lessonDwellTimer); lessonDwellTimer = null; }
+          }, 1000);
+        }
       } else {
         const q = step.quiz;
         wrap.innerHTML = `
           <div class="animate-pop space-y-4">
             <div class="flex items-center justify-between gap-2 flex-wrap">
-              <div class="flex items-center gap-1.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                ${step.isRetry ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300">🔁 ভুল সংশোধন</span>` : ''}
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold ${q.badgeCls}">
                   🎯 ${q.badge}
                 </span>
@@ -1651,8 +1827,15 @@
                   ${q.diffText}
                 </span>
               </div>
-              <span class="text-xs text-slate-400 hidden sm:inline">কীবোর্ড: ১-৪ বাছাই · Enter যাচাই</span>
+              ${state.strictMode && lesson.type === 'boss' && !activeLesson.checked
+                ? `<span id="boss-q-timer" class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300">⏱️ ${toBnNum(activeLesson.bossTimeLeft)} সে.</span>`
+                : `<span class="text-xs text-slate-400 hidden sm:inline">কীবোর্ড: ১-৪ বাছাই · Enter যাচাই</span>`}
             </div>
+            ${state.strictMode && lesson.type === 'boss' && !activeLesson.checked ? `
+              <div class="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div id="boss-q-bar" class="h-full bg-amber-500 transition-all duration-1000" style="width:${Math.round((activeLesson.bossTimeLeft / 45) * 100)}%"></div>
+              </div>
+            ` : ''}
 
             <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
               ${q.promptHtml}
@@ -1722,72 +1905,143 @@
               updateSelectionUI();
             });
           });
+
+          clearLessonTimers();
+          if (state.strictMode && lesson.type === 'boss') {
+            lessonBossTimer = setInterval(() => {
+              if (!activeLesson || activeLesson.checked || activeLesson.finished) { clearLessonTimers(); return; }
+              activeLesson.bossTimeLeft = Math.max(0, activeLesson.bossTimeLeft - 1);
+              const tEl = document.getElementById('boss-q-timer');
+              const bEl = document.getElementById('boss-q-bar');
+              if (tEl) {
+                tEl.textContent = `⏱️ ${toBnNum(activeLesson.bossTimeLeft)} সে.`;
+                if (activeLesson.bossTimeLeft <= 10) tEl.className = 'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 animate-pulse';
+              }
+              if (bEl) {
+                bEl.style.width = `${Math.round((activeLesson.bossTimeLeft / 45) * 100)}%`;
+                if (activeLesson.bossTimeLeft <= 10) bEl.className = 'h-full bg-rose-500 transition-all duration-1000';
+              }
+              if (activeLesson.bossTimeLeft <= 0) {
+                clearLessonTimers();
+                forceTimeoutWrong();
+              }
+            }, 1000);
+          }
         } else {
           const ok = activeLesson.lastCorrect;
           footer.className = ok
             ? 'bg-emerald-50 dark:bg-emerald-950/90 border-t-2 border-emerald-400 px-3 sm:px-6 py-4 transition-colors'
             : 'bg-rose-50 dark:bg-rose-950/90 border-t-2 border-rose-400 px-3 sm:px-6 py-4 transition-colors';
 
+          const coolLocked = state.strictMode && !ok && activeLesson.explainCooldown > 0;
           footerInner.innerHTML = `
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div class="flex-1 min-w-0">
                 <div class="font-extrabold text-base ${ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}">
-                  ${ok ? '✅ চমৎকার! সঠিক উত্তর (+10 XP)' : '❌ ভুল হয়েছে! সমাধান দেখে নিন:'}
+                  ${ok
+                    ? (step.isRetry ? '✅ দারুণ! ভুলটি সংশোধন হয়েছে (+5 XP)' : '✅ চমৎকার! সঠিক উত্তর (+10 XP)')
+                    : (activeLesson.timedOut ? '⏱️ সময় শেষ! প্রশ্নটি শেষে আবার আসবে—সমাধান দেখুন:' : (state.strictMode ? '❌ ভুল হয়েছে! প্রশ্নটি শেষে আবার আসবে—সমাধান দেখুন:' : '❌ ভুল হয়েছে! সমাধান দেখে নিন:'))}
                 </div>
                 <div class="text-xs sm:text-sm text-slate-700 dark:text-slate-200 mt-1 math-scroll">
                   ${q.explanation || q.formula.context}
                 </div>
               </div>
-              <button id="les-continue-btn" class="w-full sm:w-auto px-7 py-3 rounded-xl font-extrabold text-sm text-white shrink-0 shadow-sm active:scale-95 transition ${ok ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}">
-                পরবর্তী →
+              <button id="les-continue-btn" ${coolLocked ? 'disabled' : ''} class="w-full sm:w-auto px-7 py-3 rounded-xl font-extrabold text-sm shrink-0 shadow-sm transition ${coolLocked ? 'bg-rose-300 dark:bg-rose-900/50 text-white/80 cursor-not-allowed' : (ok ? 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95' : 'bg-rose-600 hover:bg-rose-700 text-white active:scale-95')}">
+                ${coolLocked ? `সমাধান পড়ুন (${toBnNum(activeLesson.explainCooldown)} সে.)` : 'পরবর্তী →'}
               </button>
             </div>
           `;
           renderMath(footerInner);
-          document.getElementById('les-continue-btn').addEventListener('click', advanceLessonStep);
+          const contBtn = document.getElementById('les-continue-btn');
+          contBtn.addEventListener('click', () => {
+            if (state.strictMode && !ok && activeLesson.explainCooldown > 0) return;
+            advanceLessonStep();
+          });
+          clearLessonTimers();
+          if (coolLocked) {
+            lessonCooldownTimer = setInterval(() => {
+              if (!activeLesson || !activeLesson.checked || activeLesson.finished) { clearLessonTimers(); return; }
+              activeLesson.explainCooldown = Math.max(0, activeLesson.explainCooldown - 1);
+              const cb = document.getElementById('les-continue-btn');
+              if (cb) {
+                if (activeLesson.explainCooldown > 0) {
+                  cb.textContent = `সমাধান পড়ুন (${toBnNum(activeLesson.explainCooldown)} সে.)`;
+                } else {
+                  cb.disabled = false;
+                  cb.textContent = 'পরবর্তী →';
+                  cb.className = 'w-full sm:w-auto px-7 py-3 rounded-xl font-extrabold text-sm shrink-0 shadow-sm transition bg-rose-600 hover:bg-rose-700 text-white active:scale-95';
+                }
+              }
+              if (activeLesson.explainCooldown <= 0) { clearInterval(lessonCooldownTimer); lessonCooldownTimer = null; }
+            }, 1000);
+          }
         }
       }
     }
 
+    function requeueMissedStep(step) {
+      if (!state.strictMode || !activeLesson) return;
+      const clonedQuiz = {
+        ...step.quiz,
+        options: shuffle([...step.quiz.options])
+      };
+      activeLesson.steps.push({ type: 'quiz', quiz: clonedQuiz, isRetry: true });
+      activeLesson.requeuedCount++;
+    }
+
+    function forceTimeoutWrong() {
+      if (!activeLesson || activeLesson.checked) return;
+      const step = activeLesson.steps[activeLesson.idx];
+      activeLesson.checked = true;
+      activeLesson.lastCorrect = false;
+      activeLesson.timedOut = true;
+      activeLesson.explainCooldown = state.strictMode ? 3 : 0;
+      recordAnswer(step.quiz.formulaId, false);
+      playTone('wrong');
+      if (!state.unlimitedHearts) {
+        state.hearts = Math.max(0, state.hearts - 1);
+        saveState();
+        updateHud();
+      }
+      requeueMissedStep(step);
+      renderLessonStep();
+    }
+
     function checkLessonAnswer() {
       if (!activeLesson || activeLesson.checked || activeLesson.selectedOptionIdx === null) return;
+      clearLessonTimers();
       const step = activeLesson.steps[activeLesson.idx];
       const opt = step.quiz.options[activeLesson.selectedOptionIdx];
       activeLesson.checked = true;
       activeLesson.lastCorrect = !!opt.correct;
+      activeLesson.timedOut = false;
       recordAnswer(step.quiz.formulaId, opt.correct);
 
       if (opt.correct) {
         playTone('correct');
         activeLesson.quizCorrect++;
-        activeLesson.xpEarned += 10;
-        addXp(10);
+        if (!step.isRetry) activeLesson.firstAttemptCorrect++;
+        const pts = step.isRetry ? 5 : 10;
+        activeLesson.xpEarned += pts;
+        addXp(pts);
       } else {
         playTone('wrong');
+        activeLesson.explainCooldown = state.strictMode ? 3 : 0;
         if (!state.unlimitedHearts) {
           state.hearts = Math.max(0, state.hearts - 1);
           saveState();
           updateHud();
         }
+        requeueMissedStep(step);
       }
       renderLessonStep();
     }
 
     function advanceLessonStep() {
       if (!activeLesson) return;
+      clearLessonTimers();
       if (!state.unlimitedHearts && state.hearts <= 0 && !activeLesson.finished) {
-        openModal(
-          'হার্ট শেষ! ❤️',
-          'আপনার সব হার্ট শেষ হয়ে গেছে। চিন্তা নেই—এখনই ফ্রি রিফিল করে লেসনটি শেষ করুন!',
-          [
-            { label: 'লেসন থেকে বের হন', onClick: closeLessonOverlay },
-            {
-              label: 'ফ্রি রিফিল করে চালিয়ে যান',
-              cls: 'px-4 py-2 rounded-xl text-sm font-bold bg-[#2493DF] text-white',
-              onClick: () => { state.hearts = 5; saveState(); updateHud(); renderLessonStep(); }
-            }
-          ]
-        );
+        openEarnHeartsModal();
         return;
       }
 
@@ -1797,53 +2051,82 @@
         activeLesson.idx++;
         activeLesson.selectedOptionIdx = null;
         activeLesson.checked = false;
+        activeLesson.lastCorrect = false;
+        activeLesson.timedOut = false;
+        activeLesson.dwellLeft = state.strictMode ? 5 : 0;
+        activeLesson.learnConfirmed = false;
+        activeLesson.exampleRevealed = false;
+        activeLesson.explainCooldown = 0;
+        activeLesson.bossTimeLeft = 45;
         const lb = document.getElementById('lesson-body');
         if (lb) lb.scrollTop = 0;
-        activeLesson.lastCorrect = false;
         renderLessonStep();
-        document.getElementById('lesson-body').scrollTop = 0;
+        if (lb) lb.scrollTop = 0;
       }
     }
 
     function finishLesson() {
+      clearLessonTimers();
       activeLesson.finished = true;
-      const acc = activeLesson.quizTotal > 0 ? Math.round((activeLesson.quizCorrect / activeLesson.quizTotal) * 100) : 100;
-      const stars = acc >= 90 ? 3 : (acc >= 70 ? 2 : 1);
-      const bonusXp = activeLesson.lesson.xpReward;
-      activeLesson.xpEarned += bonusXp;
-      addXp(bonusXp);
+      const denom = activeLesson.firstAttemptTotal || activeLesson.quizTotal || 0;
+      const acc = denom > 0 ? Math.round((activeLesson.firstAttemptCorrect / denom) * 100) : 100;
+      const passThreshold = activeLesson.lesson.type === 'boss' ? 80 : 75;
+      const passed = !state.strictMode || acc >= passThreshold;
+      activeLesson.passed = passed;
+      activeLesson.finalAcc = acc;
+      activeLesson.passThreshold = passThreshold;
 
-      const prev = state.completedLessons[activeLesson.lesson.id];
-      state.completedLessons[activeLesson.lesson.id] = {
-        stars: prev ? Math.max(prev.stars, stars) : stars,
-        bestAccuracy: prev ? Math.max(prev.bestAccuracy, acc) : acc,
-        completedAt: Date.now()
-      };
-      if (activeLesson.lesson.type === 'boss' && activeLesson.lesson.ch < 11) {
-        state.expandedChapters[activeLesson.lesson.ch + 1] = true;
-      }
-      saveState();
-      playTone('complete');
-      try {
-        if (typeof confetti === 'function') {
-          confetti({ particleCount: 70, spread: 65, origin: { y: 0.6 } });
+      if (passed) {
+        const stars = acc >= 90 ? 3 : (acc >= 80 ? 2 : 1);
+        const bonusXp = activeLesson.lesson.xpReward;
+        activeLesson.xpEarned += bonusXp;
+        addXp(bonusXp);
+
+        const prev = state.completedLessons[activeLesson.lesson.id];
+        state.completedLessons[activeLesson.lesson.id] = {
+          stars: prev ? Math.max(prev.stars, stars) : stars,
+          bestAccuracy: prev ? Math.max(prev.bestAccuracy, acc) : acc,
+          completedAt: Date.now()
+        };
+        if (activeLesson.lesson.type === 'boss' && activeLesson.lesson.ch < 11) {
+          state.expandedChapters[activeLesson.lesson.ch + 1] = true;
         }
-      } catch (e) {}
+        saveState();
+        playTone('complete');
+        try {
+          if (typeof confetti === 'function') {
+            confetti({ particleCount: 70, spread: 65, origin: { y: 0.6 } });
+          }
+        } catch (e) {}
+      } else {
+        activeLesson.xpEarned += 15;
+        addXp(15);
+        saveState();
+        playTone('wrong');
+      }
       renderLessonStep();
     }
 
     function renderLessonComplete(wrap, footerInner) {
-      const acc = activeLesson.quizTotal > 0 ? Math.round((activeLesson.quizCorrect / activeLesson.quizTotal) * 100) : 100;
-      const stars = acc >= 90 ? 3 : (acc >= 70 ? 2 : 1);
+      const acc = activeLesson.finalAcc !== undefined ? activeLesson.finalAcc : 100;
+      const passed = activeLesson.passed !== false;
+      const passThreshold = activeLesson.passThreshold || 75;
+      const stars = passed ? (acc >= 90 ? 3 : (acc >= 80 ? 2 : 1)) : 0;
       const curIdx = ALL_LESSONS.findIndex(l => l.id === activeLesson.lesson.id);
       const nextLes = ALL_LESSONS[curIdx + 1] || null;
 
       wrap.innerHTML = `
         <div class="text-center py-6 sm:py-10 animate-pop">
-          <div class="text-5xl mb-3">${activeLesson.lesson.type === 'boss' ? '🏆' : '🎉'}</div>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">লেসন সম্পন্ন!</h2>
+          <div class="text-5xl mb-3">${passed ? (activeLesson.lesson.type === 'boss' ? '🏆' : '🎉') : '🛡️'}</div>
+          <h2 class="text-2xl sm:text-3xl font-extrabold ${passed ? 'text-slate-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'}">
+            ${passed ? 'লেসন পাস ও সম্পন্ন!' : 'পাস হয়নি — পুনরায় চেষ্টা করো'}
+          </h2>
           <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">${activeLesson.lesson.title}</p>
-          <div class="text-4xl text-amber-400 tracking-widest my-4">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
+          ${passed
+            ? `<div class="text-4xl text-amber-400 tracking-widest my-4">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>`
+            : `<div class="mt-3 inline-block px-4 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs sm:text-sm font-bold text-rose-700 dark:text-rose-300">
+                প্রথম চেষ্টায় সঠিকতা ${toBnNum(acc)}% · পাস করতে অন্তত ${toBnNum(passThreshold)}% প্রয়োজন
+              </div>`}
 
           <div class="grid grid-cols-3 gap-3 max-w-md mx-auto mt-6">
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5">
@@ -1851,12 +2134,12 @@
               <div class="text-xl font-extrabold text-[#2493DF] mt-1">+${toBnNum(activeLesson.xpEarned)}</div>
             </div>
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5">
-              <div class="text-xs font-semibold text-slate-400">সঠিকতা</div>
-              <div class="text-xl font-extrabold text-emerald-500 mt-1">${toBnNum(acc)}%</div>
+              <div class="text-xs font-semibold text-slate-400">প্রথম চেষ্টায়</div>
+              <div class="text-xl font-extrabold ${passed ? 'text-emerald-500' : 'text-rose-500'} mt-1">${toBnNum(acc)}%</div>
             </div>
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5">
-              <div class="text-xs font-semibold text-slate-400">স্ট্রিক</div>
-              <div class="text-xl font-extrabold text-amber-500 mt-1">🔥 ${toBnNum(state.streak)}</div>
+              <div class="text-xs font-semibold text-slate-400">সংশোধিত ভুল</div>
+              <div class="text-xl font-extrabold text-amber-500 mt-1">${toBnNum(activeLesson.requeuedCount || 0)}টি</div>
             </div>
           </div>
         </div>
@@ -1867,13 +2150,16 @@
           <button id="les-done-home" class="px-6 py-3 rounded-xl font-bold text-sm bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:brightness-95 transition">
             কোর্স ম্যাপে ফিরুন
           </button>
-          ${nextLes ? `<button id="les-done-next" class="px-7 py-3 rounded-xl font-extrabold text-sm bg-[#2493DF] hover:bg-[#1B76B8] text-white shadow-sm transition">পরবর্তী লেসন (${nextLes.type === 'boss' ? 'বস কুইজ 🏆' : nextLes.number}) →</button>` : ''}
+          ${!passed
+            ? `<button id="les-done-retry" class="px-7 py-3 rounded-xl font-extrabold text-sm bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition">🔄 পুনরায় চেষ্টা করুন</button>`
+            : (nextLes ? `<button id="les-done-next" class="px-7 py-3 rounded-xl font-extrabold text-sm bg-[#2493DF] hover:bg-[#1B76B8] text-white shadow-sm transition">পরবর্তী লেসন (${nextLes.type === 'boss' ? 'বস কুইজ 🏆' : nextLes.number}) →</button>` : '')}
         </div>
       `;
       document.getElementById('les-done-home').addEventListener('click', closeLessonOverlay);
-      if (nextLes) {
-        document.getElementById('les-done-next').addEventListener('click', () => startLesson(nextLes.id));
-      }
+      const retryBtn = document.getElementById('les-done-retry');
+      if (retryBtn) retryBtn.addEventListener('click', () => startLesson(activeLesson.lesson.id));
+      const nextBtn = document.getElementById('les-done-next');
+      if (nextBtn && nextLes) nextBtn.addEventListener('click', () => startLesson(nextLes.id));
     }
 
     // =========================================================================
@@ -3362,28 +3648,44 @@
     });
 
     document.getElementById('hearts-btn').addEventListener('click', () => {
-      openModal(
-        'হার্ট ও প্র্যাকটিস মোড ❤️',
-        `<p class="mb-3">বর্তমান হার্ট: <strong>${state.unlimitedHearts ? '∞ (আনলিমিটেড)' : `${toBnNum(state.hearts)} / ৫`}</strong>।</p>
-         <p>চাইলে আনলিমিটেড প্র্যাকটিস মোড চালু রাখতে পারেন অথবা হার্ট রিফিল করে নিতে পারেন।</p>`,
-        [
-          {
-            label: state.unlimitedHearts ? 'স্বাভাবিক হার্ট মোড (৫ ❤️)' : 'আনলিমিটেড হার্ট চালু করুন (∞)',
-            cls: 'px-4 py-2 rounded-xl text-sm font-bold bg-[#2493DF] text-white',
-            onClick: () => {
-              state.unlimitedHearts = !state.unlimitedHearts;
-              if (!state.unlimitedHearts) state.hearts = 5;
-              saveState();
-              updateHud();
-              showToast(state.unlimitedHearts ? 'আনলিমিটেড হার্ট চালু হয়েছে!' : 'স্বাভাবিক ৫ হার্ট মোড চালু হয়েছে!');
+      if (state.strictMode) {
+        openModal(
+          'হার্ট ও স্ট্রিক্ট মোড ❤️',
+          `<p class="mb-2">বর্তমান হার্ট: <strong>${toBnNum(state.hearts)} / ৫</strong>।</p>
+           <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300">স্ট্রিক্ট মোডে ফ্রি হার্ট রিফিল বন্ধ। প্র্যাকটিস অ্যারেনার <strong>দুর্বল সূত্র রিভিশন (SRS)</strong>-এ প্রতি ২টি সঠিক উত্তরে +১ ❤️ অর্জন করুন!</p>`,
+          [
+            { label: 'স্ট্রিক্ট সেটিংস', onClick: openStrictModeModal },
+            {
+              label: 'রিভিশন ড্রিল (+❤️)',
+              cls: 'px-4 py-2 rounded-xl text-sm font-bold bg-rose-600 text-white',
+              onClick: () => { currentTab = 'practice'; practiceMode = 'srs'; renderCurrentTab(); }
             }
-          },
-          {
-            label: '৫ হার্ট রিফিল',
-            onClick: () => { state.hearts = 5; saveState(); updateHud(); showToast('৫টি হার্ট রিফিল হয়েছে!'); }
-          }
-        ]
-      );
+          ]
+        );
+      } else {
+        openModal(
+          'হার্ট ও প্র্যাকটিস মোড ❤️',
+          `<p class="mb-3">বর্তমান হার্ট: <strong>${state.unlimitedHearts ? '∞ (আনলিমিটেড)' : `${toBnNum(state.hearts)} / ৫`}</strong>।</p>
+           <p>চাইলে আনলিমিটেড প্র্যাকটিস মোড চালু রাখতে পারেন অথবা হার্ট রিফিল করে নিতে পারেন।</p>`,
+          [
+            {
+              label: state.unlimitedHearts ? 'স্বাভাবিক হার্ট মোড (৫ ❤️)' : 'আনলিমিটেড হার্ট চালু করুন (∞)',
+              cls: 'px-4 py-2 rounded-xl text-sm font-bold bg-[#2493DF] text-white',
+              onClick: () => {
+                state.unlimitedHearts = !state.unlimitedHearts;
+                if (!state.unlimitedHearts) state.hearts = 5;
+                saveState();
+                updateHud();
+                showToast(state.unlimitedHearts ? 'আনলিমিটেড হার্ট চালু হয়েছে!' : 'স্বাভাবিক ৫ হার্ট মোড চালু হয়েছে!');
+              }
+            },
+            {
+              label: '৫ হার্ট রিফিল',
+              onClick: () => { state.hearts = 5; saveState(); updateHud(); showToast('৫টি হার্ট রিফিল হয়েছে!'); }
+            }
+          ]
+        );
+      }
     });
 
     document.getElementById('lesson-exit-btn').addEventListener('click', () => {
@@ -3413,6 +3715,7 @@
       if (!step) return;
       if (step.type === 'learn' && e.key === 'Enter') {
         e.preventDefault();
+        if (state.strictMode && (activeLesson.dwellLeft > 0 || !activeLesson.learnConfirmed)) return;
         advanceLessonStep();
       } else if (step.type === 'quiz') {
         if (!activeLesson.checked && ['1','2','3','4'].includes(e.key)) {
@@ -3420,12 +3723,16 @@
           if (i < step.quiz.options.length) {
             playTone('tap');
             activeLesson.selectedOptionIdx = i;
-            renderLessonStep();
+            const optBtn = document.querySelector(`[data-opt="${i}"]`);
+            if (optBtn) optBtn.click();
           }
         } else if (e.key === 'Enter') {
           e.preventDefault();
           if (!activeLesson.checked && activeLesson.selectedOptionIdx !== null) checkLessonAnswer();
-          else if (activeLesson.checked) advanceLessonStep();
+          else if (activeLesson.checked) {
+            if (state.strictMode && !activeLesson.lastCorrect && activeLesson.explainCooldown > 0) return;
+            advanceLessonStep();
+          }
         }
       }
     });
