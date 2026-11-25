@@ -152,11 +152,16 @@
       border-color: rgba(0, 240, 255, 0.22) !important;
     }
     html.dark .rounded-2xl.dark\:bg-slate-900 {
-      box-shadow: 0 0 18px rgba(0, 240, 255, 0.06);
+      box-shadow: none;
     }
     html.dark .rounded-2xl.dark\:bg-slate-900:hover {
-      border-color: rgba(0, 240, 255, 0.45) !important;
-      box-shadow: 0 0 22px rgba(0, 240, 255, 0.14);
+      border-color: rgba(0, 240, 255, 0.48) !important;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.14);
+    }
+    html.dark .bg-cyan-600 {
+      background: linear-gradient(135deg, #00f0ff 0%, #00c2ff 100%) !important;
+      color: #000000 !important;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.38);
     }
     html.dark .formula-hero {
       background: radial-gradient(circle at top, rgba(0, 240, 255, 0.14), #04070e 75%) !important;
@@ -1047,6 +1052,8 @@
         btn.addEventListener('click', () => {
           playTone('tap');
           guideState.tab = btn.dataset.gtab;
+          const gb = document.getElementById('guide-body');
+          if (gb) gb.scrollTop = 0;
           renderGuideOverlay();
         });
       });
@@ -1198,6 +1205,13 @@
 
       renderMath(wrap);
 
+      const preserveGuideScroll = (fn) => {
+        const gb = document.getElementById('guide-body');
+        const y = gb ? gb.scrollTop : 0;
+        fn();
+        if (gb) gb.scrollTop = y;
+      };
+
       wrap.querySelectorAll('[data-gmcq]').forEach(btn => {
         btn.addEventListener('click', () => {
           const key = btn.dataset.gmcq;
@@ -1207,7 +1221,7 @@
           guideState.duAnswers[key] = oIdx;
           if (q && oIdx === q.correctIndex) { playTone('correct'); addXp(5); }
           else { playTone('wrong'); }
-          renderGuideOverlay();
+          preserveGuideScroll(renderGuideOverlay);
         });
       });
 
@@ -1215,7 +1229,7 @@
         btn.addEventListener('click', () => {
           const key = btn.dataset.gwr;
           guideState.revealedWritten[key] = !guideState.revealedWritten[key];
-          renderGuideOverlay();
+          preserveGuideScroll(renderGuideOverlay);
         });
       });
 
@@ -1223,7 +1237,7 @@
         btn.addEventListener('click', () => {
           playTone('tap');
           guideState.revealedDrills[btn.dataset.gdrill] = true;
-          renderGuideOverlay();
+          preserveGuideScroll(renderGuideOverlay);
         });
       });
     }
@@ -1457,13 +1471,23 @@
         renderMath(wrap);
 
         if (!activeLesson.checked) {
-          wrap.querySelectorAll('[data-opt]').forEach(btn => {
-            btn.addEventListener('click', () => {
-              playTone('tap');
-              activeLesson.selectedOptionIdx = Number(btn.dataset.opt);
-              renderLessonStep();
+          const updateSelectionUI = () => {
+            wrap.querySelectorAll('[data-opt]').forEach(b => {
+              const i = Number(b.dataset.opt);
+              const isSel = activeLesson.selectedOptionIdx === i;
+              b.className = `w-full text-left p-3.5 sm:p-4 rounded-xl border-2 transition flex items-center gap-3 ${isSel ? 'border-[#2493DF] bg-sky-50/80 dark:bg-sky-950/40 ring-2 ring-[#2493DF]/30' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-[#2493DF]'}`;
+              const badge = b.querySelector('span');
+              if (badge) {
+                badge.className = `w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold shrink-0 ${isSel ? 'bg-[#2493DF] text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`;
+              }
             });
-          });
+            const chk = document.getElementById('les-check-btn');
+            if (chk) {
+              const dis = activeLesson.selectedOptionIdx === null;
+              chk.disabled = dis;
+              chk.className = `w-full sm:w-auto px-8 py-3 rounded-xl font-extrabold text-sm transition ${dis ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-[#2493DF] hover:bg-[#1B76B8] text-white shadow-sm active:scale-95'}`;
+            }
+          };
 
           const disabled = activeLesson.selectedOptionIdx === null;
           footerInner.innerHTML = `
@@ -1473,9 +1497,17 @@
               </button>
             </div>
           `;
-          if (!disabled) {
-            document.getElementById('les-check-btn').addEventListener('click', checkLessonAnswer);
-          }
+          document.getElementById('les-check-btn').addEventListener('click', () => {
+            if (activeLesson && !activeLesson.checked && activeLesson.selectedOptionIdx !== null) checkLessonAnswer();
+          });
+
+          wrap.querySelectorAll('[data-opt]').forEach(btn => {
+            btn.addEventListener('click', () => {
+              playTone('tap');
+              activeLesson.selectedOptionIdx = Number(btn.dataset.opt);
+              updateSelectionUI();
+            });
+          });
         } else {
           const ok = activeLesson.lastCorrect;
           footer.className = ok
@@ -1551,6 +1583,8 @@
         activeLesson.idx++;
         activeLesson.selectedOptionIdx = null;
         activeLesson.checked = false;
+        const lb = document.getElementById('lesson-body');
+        if (lb) lb.scrollTop = 0;
         activeLesson.lastCorrect = false;
         renderLessonStep();
         document.getElementById('lesson-body').scrollTop = 0;
@@ -2650,10 +2684,11 @@
     // =========================================================================
     // 11. TAB 3: FORMULA VAULT (Searchable Reference + Self-Test Mode + Deep Notes)
     // =========================================================================
-    function renderVaultView() {
-      const main = document.getElementById('app-main');
+    let vaultDebounceTimer = null;
+
+    function getFilteredVaultFormulas() {
       const q = vaultState.search.trim().toLowerCase();
-      const filtered = FORMULAS.filter(f => {
+      return FORMULAS.filter(f => {
         if (vaultState.chapter > 0 && f.ch !== vaultState.chapter) return false;
         const st = state.formulaStats[f.id] || {};
         if (vaultState.filter === 'bookmarked' && !st.bookmarked) return false;
@@ -2664,11 +2699,132 @@
         }
         return true;
       });
+    }
+
+    function renderVaultCardHtml(f) {
+      const st = state.formulaStats[f.id] || {};
+      const mastery = st.mastery || 0;
+      const blurred = vaultState.hideFormulas && !vaultState.revealed[f.id];
+      const showExtra = !!vaultState.expandedDetails[f.id];
+      return `
+        <article data-vcard="${f.id}" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/60 text-[#2493DF] dark:text-sky-300">অধ্যায় ${toBnNum(f.ch)}</span>
+              <span class="text-sm font-extrabold text-slate-900 dark:text-white">${f.topic}</span>
+              ${f.isNewPdfSection ? '<span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300">নতুন</span>' : ''}
+              ${mastery >= 2 ? '<span class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">● আয়ত্ত</span>' : ''}
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button data-vextra="${f.id}" class="px-2.5 py-1 rounded-lg text-xs font-bold ${showExtra ? 'bg-sky-100 dark:bg-sky-950 text-[#2493DF]' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}">${showExtra ? 'কম দেখান' : '💡 ধারণা ও উদাহরণ'}</button>
+              <button data-vcopy="${f.id}" title="Copy LaTeX" class="px-2 py-1 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">📋</button>
+              <button data-vbm="${f.id}" title="Bookmark" class="px-2 py-1 rounded-lg text-sm ${st.bookmarked ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}">${st.bookmarked ? '★' : '☆'}</button>
+            </div>
+          </div>
+          <div class="text-sm text-slate-700 dark:text-slate-300 mb-3">${f.question}</div>
+          <div data-vreveal="${f.id}" class="math-scroll p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer ${blurred ? 'blur-formula' : ''}" title="${blurred ? 'দেখতে ট্যাপ করুন' : ''}">
+            ${f.answer}
+          </div>
+          ${blurred ? '<div class="text-[11px] text-center text-indigo-500 font-semibold mt-1">সূত্রটি দেখতে বক্সে ট্যাপ করুন</div>' : ''}
+          ${f.svg ? `<div class="mt-3">${f.svg}</div>` : ''}
+          <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed math-scroll">
+            ${f.context}
+          </div>
+          ${showExtra ? `
+            <div class="mt-3 space-y-2 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs sm:text-sm">
+              ${f.intuition ? `<div class="p-2.5 rounded-xl bg-sky-50/70 dark:bg-sky-950/30 text-slate-700 dark:text-slate-200 math-scroll"><span class="font-bold text-[#2493DF]">💡 মূল ধারণা:</span> ${f.intuition}</div>` : ''}
+              ${f.quickExample ? `<div class="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 text-slate-700 dark:text-slate-200 math-scroll"><span class="font-bold text-emerald-600 dark:text-emerald-400">📝 উদাহরণ:</span> ${f.quickExample}</div>` : ''}
+              ${f.trap ? `<div class="p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 text-slate-700 dark:text-slate-200 math-scroll"><span class="font-bold text-amber-600 dark:text-amber-400">⚠️ ফাঁদ:</span> ${f.trap}</div>` : ''}
+            </div>
+          ` : ''}
+        </article>
+      `;
+    }
+
+    function renderVaultListOnly() {
+      const listEl = document.getElementById('vault-list');
+      const countEl = document.getElementById('vault-count-title');
+      if (!listEl) return;
+      const filtered = getFilteredVaultFormulas();
+      const limit = vaultState.limit || 20;
+      const visible = filtered.slice(0, limit);
+      if (countEl) countEl.textContent = `সূত্র ভাণ্ডার (${toBnNum(filtered.length)}/${toBnNum(FORMULAS.length)})`;
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-500">কোনো সূত্র পাওয়া যায়নি। ফিল্টার বা সার্চ পরিবর্তন করে দেখুন।</div>`;
+        return;
+      }
+
+      listEl.innerHTML = visible.map(renderVaultCardHtml).join('') + (filtered.length > visible.length ? `
+        <div class="text-center pt-2">
+          <button id="vault-load-more" class="px-6 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-extrabold transition">
+            আরও দেখুন (${toBnNum(filtered.length - visible.length)}টি বাকি) ↓
+          </button>
+        </div>
+      ` : '');
+      renderMath(listEl);
+
+      const loadMore = document.getElementById('vault-load-more');
+      if (loadMore) {
+        loadMore.addEventListener('click', () => {
+          vaultState.limit = (vaultState.limit || 20) + 25;
+          renderVaultListOnly();
+        });
+      }
+
+      listEl.querySelectorAll('[data-vreveal]').forEach(box => {
+        box.addEventListener('click', () => {
+          if (!vaultState.hideFormulas) return;
+          const id = Number(box.dataset.vreveal);
+          vaultState.revealed[id] = !vaultState.revealed[id];
+          const card = listEl.querySelector(`[data-vcard="${id}"]`);
+          if (card) {
+            card.outerHTML = renderVaultCardHtml(FORMULAS[id]);
+            const fresh = listEl.querySelector(`[data-vcard="${id}"]`);
+            if (fresh) { renderMath(fresh); bindSingleVaultCard(fresh, id); }
+          }
+        });
+      });
+
+      listEl.querySelectorAll('[data-vcard]').forEach(card => {
+        bindSingleVaultCard(card, Number(card.dataset.vcard));
+      });
+    }
+
+    function bindSingleVaultCard(card, id) {
+      const bmBtn = card.querySelector('[data-vbm]');
+      if (bmBtn) bmBtn.addEventListener('click', () => {
+        const st = getFormulaStat(id);
+        st.bookmarked = !st.bookmarked;
+        saveState();
+        bmBtn.textContent = st.bookmarked ? '★' : '☆';
+        bmBtn.className = `px-2 py-1 rounded-lg text-sm ${st.bookmarked ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`;
+        showToast(st.bookmarked ? 'বুকমার্ক করা হয়েছে ★' : 'বুকমার্ক সরানো হয়েছে');
+      });
+      const cpBtn = card.querySelector('[data-vcopy]');
+      if (cpBtn) cpBtn.addEventListener('click', () => {
+        const f = FORMULAS[id];
+        copyText(`${f.topic}: ${f.answer}`);
+      });
+      const exBtn = card.querySelector('[data-vextra]');
+      if (exBtn) exBtn.addEventListener('click', () => {
+        vaultState.expandedDetails[id] = !vaultState.expandedDetails[id];
+        card.outerHTML = renderVaultCardHtml(FORMULAS[id]);
+        const listEl = document.getElementById('vault-list');
+        const fresh = listEl && listEl.querySelector(`[data-vcard="${id}"]`);
+        if (fresh) { renderMath(fresh); bindSingleVaultCard(fresh, id); }
+      });
+    }
+
+    function renderVaultView() {
+      const main = document.getElementById('app-main');
+      vaultState.limit = 20;
+      const filtered = getFilteredVaultFormulas();
 
       main.innerHTML = `
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
-            <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">সূত্র ভাণ্ডার (${toBnNum(filtered.length)}/${toBnNum(FORMULAS.length)})</h1>
+            <h1 id="vault-count-title" class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">সূত্র ভাণ্ডার (${toBnNum(filtered.length)}/${toBnNum(FORMULAS.length)})</h1>
             <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">দ্রুত খুঁজুন, মূল ধারণা ও উদাহরণ দেখুন অথবা সূত্র লুকিয়ে নিজেই টেস্ট দিন</p>
           </div>
           <button id="vault-hide-toggle" class="px-4 py-2 rounded-xl text-xs font-extrabold border transition self-start sm:self-auto ${vaultState.hideFormulas ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'}">
@@ -2693,61 +2849,17 @@
           </div>
         </div>
 
-        <div id="vault-list" class="space-y-3">
-          ${filtered.length === 0 ? `
-            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center text-slate-500">
-              কোনো সূত্র পাওয়া যায়নি। ফিল্টার বা সার্চ পরিবর্তন করে দেখুন।
-            </div>
-          ` : filtered.map(f => {
-            const st = state.formulaStats[f.id] || {};
-            const mastery = st.mastery || 0;
-            const blurred = vaultState.hideFormulas && !vaultState.revealed[f.id];
-            const showExtra = !!vaultState.expandedDetails[f.id];
-            return `
-              <article class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
-                <div class="flex items-start justify-between gap-2 mb-2">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/60 text-[#2493DF] dark:text-sky-300">অধ্যায় ${toBnNum(f.ch)}</span>
-                    <span class="text-sm font-extrabold text-slate-900 dark:text-white">${f.topic}</span>
-                    ${f.isNewPdfSection ? '<span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300">নতুন</span>' : ''}
-                    ${mastery >= 2 ? '<span class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">● আয়ত্ত</span>' : ''}
-                  </div>
-                  <div class="flex items-center gap-1 shrink-0">
-                    <button data-vextra="${f.id}" class="px-2.5 py-1 rounded-lg text-xs font-bold ${showExtra ? 'bg-sky-100 dark:bg-sky-950 text-[#2493DF]' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}">${showExtra ? 'কম দেখান' : '💡 ধারণা ও উদাহরণ'}</button>
-                    <button data-vcopy="${f.id}" title="Copy LaTeX" class="px-2 py-1 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">📋</button>
-                    <button data-vbm="${f.id}" title="Bookmark" class="px-2 py-1 rounded-lg text-sm ${st.bookmarked ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}">${st.bookmarked ? '★' : '☆'}</button>
-                  </div>
-                </div>
-                <div class="text-sm text-slate-700 dark:text-slate-300 mb-3">${f.question}</div>
-                <div data-vreveal="${f.id}" class="math-scroll p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer ${blurred ? 'blur-formula' : ''}" title="${blurred ? 'দেখতে ট্যাপ করুন' : ''}">
-                  ${f.answer}
-                </div>
-                ${blurred ? '<div class="text-[11px] text-center text-indigo-500 font-semibold mt-1">সূত্রটি দেখতে বক্সে ট্যাপ করুন</div>' : ''}
-                ${f.svg ? `<div class="mt-3">${f.svg}</div>` : ''}
-                <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed math-scroll">
-                  ${f.context}
-                </div>
-                ${showExtra ? `
-                  <div class="mt-3 space-y-2 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs sm:text-sm">
-                    ${f.intuition ? `<div class="p-2.5 rounded-xl bg-sky-50/70 dark:bg-sky-950/30 text-slate-700 dark:text-slate-200 math-scroll"><span class="font-bold text-[#2493DF]">💡 মূল ধারণা:</span> ${f.intuition}</div>` : ''}
-                    ${f.quickExample ? `<div class="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 text-slate-700 dark:text-slate-200 math-scroll"><span class="font-bold text-emerald-600 dark:text-emerald-400">📝 উদাহরণ:</span> ${f.quickExample}</div>` : ''}
-                    ${f.trap ? `<div class="p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 text-slate-700 dark:text-slate-200 math-scroll"><span class="font-bold text-amber-600 dark:text-amber-400">⚠️ ফাঁদ:</span> ${f.trap}</div>` : ''}
-                  </div>
-                ` : ''}
-              </article>
-            `;
-          }).join('')}
-        </div>
+        <div id="vault-list" class="space-y-3"></div>
       `;
-      renderMath(main);
+
+      renderVaultListOnly();
 
       const searchEl = document.getElementById('vault-search');
       searchEl.addEventListener('input', (e) => {
         vaultState.search = e.target.value;
-        const pos = e.target.selectionStart;
-        renderVaultView();
-        const fresh = document.getElementById('vault-search');
-        if (fresh) { fresh.focus(); fresh.setSelectionRange(pos, pos); }
+        vaultState.limit = 20;
+        clearTimeout(vaultDebounceTimer);
+        vaultDebounceTimer = setTimeout(renderVaultListOnly, 160);
       });
 
       document.getElementById('vault-hide-toggle').addEventListener('click', () => {
@@ -2761,36 +2873,6 @@
       });
       main.querySelectorAll('[data-vch]').forEach(btn => {
         btn.addEventListener('click', () => { vaultState.chapter = Number(btn.dataset.vch); renderVaultView(); });
-      });
-      main.querySelectorAll('[data-vextra]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = Number(btn.dataset.vextra);
-          vaultState.expandedDetails[id] = !vaultState.expandedDetails[id];
-          renderVaultView();
-        });
-      });
-      main.querySelectorAll('[data-vbm]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const st = getFormulaStat(Number(btn.dataset.vbm));
-          st.bookmarked = !st.bookmarked;
-          saveState();
-          renderVaultView();
-        });
-      });
-      main.querySelectorAll('[data-vreveal]').forEach(box => {
-        box.addEventListener('click', () => {
-          if (!vaultState.hideFormulas) return;
-          const id = Number(box.dataset.vreveal);
-          vaultState.revealed[id] = !vaultState.revealed[id];
-          renderVaultView();
-        });
-      });
-      main.querySelectorAll('[data-vcopy]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const f = FORMULAS[Number(btn.dataset.vcopy)];
-          const text = f.answer.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-          copyText(text);
-        });
       });
     }
 
@@ -3065,6 +3147,12 @@
     });
 
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const go = document.getElementById('guide-overlay');
+        if (go && !go.classList.contains('hidden')) { closeChapterGuide(); return; }
+        const mb = document.getElementById('modal-backdrop');
+        if (mb && !mb.classList.contains('hidden')) { closeModal(); return; }
+      }
       if (!activeLesson || activeLesson.finished) return;
       const step = activeLesson.steps[activeLesson.idx];
       if (!step) return;
