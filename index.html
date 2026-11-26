@@ -1009,7 +1009,7 @@
           <p class="font-semibold text-slate-800 dark:text-white">প্রকৃত শেখা নিশ্চিত করতে নিচের নিয়মগুলো প্রয়োগ করা হয়েছে:</p>
           <ul class="list-disc pl-5 space-y-1">
             <li><strong>সক্রিয় পাঠ গেট:</strong> প্রতিটি শেখার স্লাইডে কমপক্ষে ৫ সেকেন্ড পড়া + উদাহরণ যাচাই + "বুঝেছি" চেকবক্স পূরণ বাধ্যতামূলক।</li>
-            <li><strong>গাণিতিক ভুল সংশোধন ও লেসন রিডাইরেক্ট:</strong> গাণিতিক প্রশ্ন ভুল হলে ঠিক পরের ধাপেই ভিন্ন মানের একই অঙ্ক আসবে। সেটিও ভুল হলে সংশ্লিষ্ট মূল লেসনে ফেরত পাঠানো হবে এবং লেসন পড়ার পর আবার নতুন মানের অঙ্ক আসবে (কনসেপচুয়াল প্রশ্নে এটি প্রযোজ্য নয়)।</li>
+            <li><strong>স্মার্ট ভুল সংশোধন ও লেসন রিডাইরেক্ট:</strong> গাণিতিক প্রশ্ন ভুল হলে ঠিক পরের ধাপেই ভিন্ন মানের অঙ্ক আসবে; আর কনসেপচুয়াল প্রশ্ন ভুল হলে ২ ধাপ পর ভিন্ন কোণের প্রশ্ন আসবে। দ্বিতীয়বারও ভুল হলে সংশ্লিষ্ট মূল লেসনে (মূল ধারণা ও ফাঁদ হাইলাইটসহ) ফেরত পাঠানো হবে এবং পড়ার পর নতুন প্রশ্ন আসবে।</li>
             <li><strong>পাসিং মার্ক:</strong> সাধারণ লেসনে ≥৭৫% এবং বস কুইজে ≥৮০% প্রথম-চেষ্টার সঠিকতা ছাড়া লেসন পাস ও পরেরটি আনলক হবে না।</li>
             <li><strong>বস কুইজ টাইমার:</strong> ঢাবি পরীক্ষার গতিতে প্রতিটি বস প্রশ্নে ৪৫ সেকেন্ড সময়।</li>
             <li><strong>হার্ট অর্জন:</strong> হার্ট শেষ হলে ফ্রি রিফিল নেই—রিভিশন ড্রিল (SRS) এ প্রতি ২টি সঠিক উত্তরে +১ ❤️ অর্জন করতে হবে।</li>
@@ -1718,7 +1718,8 @@
               ${isConcept && eqs.length > 0 ? `<div class="pt-1">${equationsHtml}</div>` : ''}
               ${f.svg ? `<div class="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/60">${f.svg}</div>` : ''}
               ${f.intuition ? `
-                <div class="pt-3.5 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-200 leading-relaxed math-scroll">
+                <div class="${activeLesson.highlightConceptFocus ? 'p-3.5 rounded-xl bg-sky-50/90 dark:bg-sky-950/40 ring-2 ring-sky-400 dark:ring-cyan-400' : 'pt-3.5 border-t border-slate-100 dark:border-slate-800'} text-sm text-slate-700 dark:text-slate-200 leading-relaxed math-scroll">
+                  ${activeLesson.highlightConceptFocus ? '<div class="text-[11px] font-extrabold text-sky-700 dark:text-cyan-300 mb-1">📌 কনসেপ্ট রিভিউ — এই মূল ধারণাটি ভালো করে পড়ো:</div>' : ''}
                   <span class="font-extrabold text-[#2493DF] dark:text-sky-300">💡 মূল ধারণা:</span> ${f.intuition}
                 </div>
               ` : ''}
@@ -1729,8 +1730,8 @@
             ${exampleHtml}
 
             ${f.trap ? `
-              <div class="bg-amber-50/90 dark:bg-amber-950/30 rounded-2xl border border-amber-200/90 dark:border-amber-800/60 p-4 text-sm leading-relaxed text-slate-800 dark:text-slate-200 math-scroll">
-                <div class="text-xs font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">⚠️ পরীক্ষার সাধারণ ফাঁদ</div>
+              <div class="bg-amber-50/90 dark:bg-amber-950/30 rounded-2xl border ${activeLesson.highlightConceptFocus ? 'border-amber-400 ring-2 ring-amber-400/70 shadow-md' : 'border-amber-200/90 dark:border-amber-800/60'} p-4 text-sm leading-relaxed text-slate-800 dark:text-slate-200 math-scroll">
+                <div class="text-xs font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">⚠️ পরীক্ষার সাধারণ ফাঁদ ${activeLesson.highlightConceptFocus ? '· মনোযোগ দাও!' : ''}</div>
                 ${f.trap}
               </div>
             ` : ''}
@@ -1940,14 +1941,18 @@
               <div class="flex-1 min-w-0">
                 <div class="font-extrabold text-base ${ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}">
                   ${ok
-                    ? (step.isImmediateRetry || step.fromRemediation ? '✅ দারুণ! ভিন্ন মানের প্রশ্নটি সঠিক হয়েছে (+5 XP)' : '✅ চমৎকার! সঠিক উত্তর (+10 XP)')
+                    ? (step.isConceptualRetry ? '✅ দারুণ! ভিন্ন কোণের কনসেপ্টটি আয়ত্ত হয়েছে (+5 XP)' : (step.isImmediateRetry || step.fromRemediation ? '✅ দারুণ! পুনরায় যাচাই সঠিক হয়েছে (+5 XP)' : '✅ চমৎকার! সঠিক উত্তর (+10 XP)'))
                     : (activeLesson.needsRedirectToLesson
                         ? '🚨 পরপর ২ বার ভুল হয়েছে! আগে এই সূত্রের মূল লেসনটি পুনরায় পড়ুন:'
                         : (state.strictMode && isNumericalQuiz(q)
                             ? (activeLesson.timedOut
                                 ? '⏱️ সময় শেষ! ঠিক পরের ধাপেই ভিন্ন মানে একই অঙ্ক আসবে—সমাধান দেখুন:'
                                 : '❌ ভুল হয়েছে! ঠিক পরের ধাপেই ভিন্ন মানে একই অঙ্ক আসবে—সমাধান দেখুন:')
-                            : (activeLesson.timedOut ? '⏱️ সময় শেষ! সমাধান দেখে নিন:' : '❌ ভুল হয়েছে! সমাধান দেখে নিন:')))}
+                            : (state.strictMode
+                                ? (activeLesson.timedOut
+                                    ? '⏱️ সময় শেষ! ২ ধাপ পর ভিন্ন কোণে কনসেপ্টটি আবার যাচাই হবে—সমাধান দেখুন:'
+                                    : '❌ ভুল হয়েছে! ২ ধাপ পর ভিন্ন কোণে কনসেপ্টটি আবার যাচাই হবে—সমাধান দেখুন:')
+                                : (activeLesson.timedOut ? '⏱️ সময় শেষ! সমাধান দেখে নিন:' : '❌ ভুল হয়েছে! সমাধান দেখে নিন:'))))}
                 </div>
                 <div class="text-xs sm:text-sm text-slate-700 dark:text-slate-200 mt-1 math-scroll">
                   ${q.explanation || q.formula.context}
@@ -2458,11 +2463,35 @@
       };
     }
 
+    function buildConceptualVariantQuiz(origQuiz, avoidPromptHtml = '') {
+      const f = FORMULAS[origQuiz.formulaId] || origQuiz.formula;
+      const siblings = (QUIZZES_BY_FORMULA[origQuiz.formulaId] || []).filter(hq => {
+        const snippet = (hq.question || '').slice(0, 28);
+        return snippet && !origQuiz.promptHtml.includes(snippet) && (!avoidPromptHtml || !avoidPromptHtml.includes(snippet));
+      });
+      if (siblings.length > 0) {
+        const alt = buildHandcraftedQuizObj(pickRand(siblings));
+        alt.badge = 'ভিন্ন কোণে কনসেপ্ট যাচাই';
+        alt.badgeCls = 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300';
+        alt.diffText = 'পুনঃযাচাই';
+        alt.diffCls = 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300';
+        return alt;
+      }
+      return {
+        ...origQuiz,
+        badge: 'কনসেপ্ট পুনরায় যাচাই',
+        badgeCls: 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',
+        diffText: 'পুনঃযাচাই',
+        diffCls: 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300',
+        options: shuffle([...origQuiz.options])
+      };
+    }
+
     function findLearnLessonForFormula(formulaId) {
       return ALL_LESSONS.find(l => l.type !== 'boss' && l.formulaIds.includes(formulaId)) || null;
     }
 
-    function redirectToRelatedLesson(formulaId, missedQuiz) {
+    function redirectToRelatedLesson(formulaId, missedQuiz, isConceptual = false) {
       clearLessonTimers();
       const targetLes = findLearnLessonForFormula(formulaId);
       const f = FORMULAS[formulaId];
@@ -2470,17 +2499,23 @@
         closeLessonOverlay();
         return;
       }
-      // Build a brand-new different-values question to appear IMMEDIATELY after re-reading the Learn Slide!
-      const freshAfterLessonQuiz = buildImmediateVariantQuiz(
-        missedQuiz || { formulaId, promptHtml: '', options: [], formula: f, quizType: 'numerical' },
-        missedQuiz ? missedQuiz.promptHtml : ''
-      );
-      freshAfterLessonQuiz.badge = 'লেসন শেষে নতুন মানে যাচাই';
+      // Build a brand-new follow-up question to appear IMMEDIATELY after re-reading the Learn Slide!
+      const freshAfterLessonQuiz = isConceptual
+        ? buildConceptualVariantQuiz(
+            missedQuiz || { formulaId, promptHtml: '', options: [], formula: f, quizType: 'concept' },
+            missedQuiz ? missedQuiz.promptHtml : ''
+          )
+        : buildImmediateVariantQuiz(
+            missedQuiz || { formulaId, promptHtml: '', options: [], formula: f, quizType: 'numerical' },
+            missedQuiz ? missedQuiz.promptHtml : ''
+          );
+      freshAfterLessonQuiz.badge = isConceptual ? 'লেসন শেষে কনসেপ্ট যাচাই' : 'লেসন শেষে নতুন মানে যাচাই';
       const postLearnStep = {
         type: 'quiz',
         quiz: freshAfterLessonQuiz,
         isRetry: true,
         isImmediateRetry: false,
+        isConceptualRetry: false,
         fromRemediation: true
       };
 
@@ -2502,6 +2537,7 @@
           activeLesson.learnConfirmed = false;
           activeLesson.exampleRevealed = false;
           activeLesson.explainCooldown = 0;
+          activeLesson.highlightConceptFocus = !!isConceptual;
           const lb = document.getElementById('lesson-body');
           if (lb) lb.scrollTop = 0;
           renderLessonStep();
@@ -2536,6 +2572,8 @@
         learnConfirmed: false,
         exampleRevealed: false,
         explainCooldown: 0,
+
+        highlightConceptFocus: !!isConceptual,
         bossTimeLeft: 45
       };
       const ov = document.getElementById('lesson-overlay');
@@ -2549,22 +2587,43 @@
 
     function requeueMissedStep(step) {
       if (!state.strictMode || !activeLesson) return;
-      // Skip immediate value-variant & lesson-redirect for conceptual/unit/graph/trap questions
-      if (!isNumericalQuiz(step.quiz)) return;
-      if (step.isImmediateRetry) {
-        activeLesson.needsRedirectToLesson = true;
-        activeLesson.redirectFormulaId = step.quiz.formulaId;
-        activeLesson.redirectMissedQuiz = step.quiz;
-        return;
+      if (isNumericalQuiz(step.quiz)) {
+        if (step.isImmediateRetry) {
+          activeLesson.needsRedirectToLesson = true;
+          activeLesson.redirectFormulaId = step.quiz.formulaId;
+          activeLesson.redirectMissedQuiz = step.quiz;
+          activeLesson.redirectIsConceptual = false;
+          return;
+        }
+        const variantQuiz = buildImmediateVariantQuiz(step.quiz);
+        activeLesson.steps.splice(activeLesson.idx + 1, 0, {
+          type: 'quiz',
+          quiz: variantQuiz,
+          isRetry: true,
+          isImmediateRetry: true
+        });
+        activeLesson.requeuedCount++;
+      } else {
+        // Conceptual / trap / graph / unit question:
+        // 1st miss -> delayed 2 steps later with a different-angle sibling question
+        // 2nd miss -> redirect to related Learn Slide with Intuition & Trap highlighted
+        if (step.isConceptualRetry) {
+          activeLesson.needsRedirectToLesson = true;
+          activeLesson.redirectFormulaId = step.quiz.formulaId;
+          activeLesson.redirectMissedQuiz = step.quiz;
+          activeLesson.redirectIsConceptual = true;
+          return;
+        }
+        const siblingQuiz = buildConceptualVariantQuiz(step.quiz);
+        const insertAt = Math.min(activeLesson.steps.length, activeLesson.idx + 3);
+        activeLesson.steps.splice(insertAt, 0, {
+          type: 'quiz',
+          quiz: siblingQuiz,
+          isRetry: true,
+          isConceptualRetry: true
+        });
+        activeLesson.requeuedCount++;
       }
-      const variantQuiz = buildImmediateVariantQuiz(step.quiz);
-      activeLesson.steps.splice(activeLesson.idx + 1, 0, {
-        type: 'quiz',
-        quiz: variantQuiz,
-        isRetry: true,
-        isImmediateRetry: true
-      });
-      activeLesson.requeuedCount++;
     }
 
     function forceTimeoutWrong() {
@@ -2621,10 +2680,12 @@
       if (activeLesson.needsRedirectToLesson && activeLesson.redirectFormulaId !== null && activeLesson.redirectFormulaId !== undefined) {
         const targetFid = activeLesson.redirectFormulaId;
         const missedQ = activeLesson.redirectMissedQuiz;
+        const isConc = !!activeLesson.redirectIsConceptual;
         activeLesson.needsRedirectToLesson = false;
         activeLesson.redirectFormulaId = null;
         activeLesson.redirectMissedQuiz = null;
-        redirectToRelatedLesson(targetFid, missedQ);
+        activeLesson.redirectIsConceptual = false;
+        redirectToRelatedLesson(targetFid, missedQ, isConc);
         return;
       }
       if (!state.unlimitedHearts && state.hearts <= 0 && !activeLesson.finished) {
@@ -2645,6 +2706,7 @@
         activeLesson.exampleRevealed = false;
         activeLesson.explainCooldown = 0;
         activeLesson.bossTimeLeft = 45;
+        activeLesson.highlightConceptFocus = false;
         const lb = document.getElementById('lesson-body');
         if (lb) lb.scrollTop = 0;
         renderLessonStep();
